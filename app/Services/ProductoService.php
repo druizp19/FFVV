@@ -41,6 +41,15 @@ class ProductoService
             }
         }
 
+        // Validar duplicados antes de crear
+        if ($this->productoRepository->existeDuplicado($data)) {
+            $claveUnica = $this->productoRepository->generarClaveUnica($data);
+            return [
+                'success' => false,
+                'message' => "Ya existe un producto con la combinación: {$claveUnica}. No se pueden crear productos duplicados."
+            ];
+        }
+
         try {
             $producto = $this->productoRepository->create($data);
 
@@ -70,6 +79,15 @@ class ProductoService
                     'message' => 'La fecha de cierre debe ser posterior a la fecha de modificación.'
                 ];
             }
+        }
+
+        // Validar duplicados antes de actualizar (excluyendo el producto actual)
+        if ($this->productoRepository->existeDuplicado($data, $id)) {
+            $claveUnica = $this->productoRepository->generarClaveUnica($data);
+            return [
+                'success' => false,
+                'message' => "Ya existe otro producto con la combinación: {$claveUnica}. No se pueden crear productos duplicados."
+            ];
         }
 
         try {

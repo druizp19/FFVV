@@ -82,6 +82,15 @@
 .ciclo-fechas {
     font-size: 13px;
     color: var(--text-tertiary);
+    margin-bottom: 8px;
+}
+
+.ciclo-dias-habiles {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    font-weight: 500;
 }
 
 /* Badges */

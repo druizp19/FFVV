@@ -31,7 +31,8 @@ use App\Repositories\{
     ZonaGeoRepository,
     EmpleadoRepository,
     ProductoRepository,
-    FuerzaVentaRepository
+    FuerzaVentaRepository,
+    UbigeoRepository
 };
 
 // Services
@@ -61,7 +62,8 @@ use App\Services\{
     ZonaGeoService,
     EmpleadoService,
     ProductoService,
-    FuerzaVentaService
+    FuerzaVentaService,
+    UbigeoService
 };
 
 class AppServiceProvider extends ServiceProvider
@@ -150,6 +152,9 @@ class AppServiceProvider extends ServiceProvider
         
         // FuerzaVenta
         $this->app->singleton(FuerzaVentaRepository::class);
+        
+        // Ubigeo
+        $this->app->singleton(UbigeoRepository::class);
 
         // ==================== SERVICES ====================
         
@@ -281,6 +286,11 @@ class AppServiceProvider extends ServiceProvider
         // FuerzaVenta Service
         $this->app->singleton(FuerzaVentaService::class, function ($app) {
             return new FuerzaVentaService($app->make(FuerzaVentaRepository::class));
+        });
+        
+        // Ubigeo Service
+        $this->app->singleton(UbigeoService::class, function ($app) {
+            return new UbigeoService($app->make(UbigeoRepository::class));
         });
     }
 

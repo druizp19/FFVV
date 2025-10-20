@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Repositories\ZonaRepository;
 use App\Models\Zona;
+use App\Models\ZonaEmp;
+use App\Models\ZonaGeo;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ZonaService
 {
@@ -28,7 +31,39 @@ class ZonaService
     public function crearZona(array $data): array
     {
         try {
-            $zona = $this->zonaRepository->create($data);
+            DB::beginTransaction();
+            
+            // Crear la zona
+            $zona = $this->zonaRepository->create([
+                'zona' => $data['zona'],
+                'idEstado' => $data['idEstado']
+            ]);
+
+            // Asignar empleados si existen
+            if (isset($data['empleados']) && is_array($data['empleados'])) {
+                foreach ($data['empleados'] as $empleado) {
+                    ZonaEmp::create([
+                        'idZona' => $zona->idZona,
+                        'idEmpleado' => $empleado['idEmpleado'],
+                        'idCiclo' => $empleado['idCiclo'],
+                        'idEstado' => 1 // Activo por defecto
+                    ]);
+                }
+            }
+
+            // Asignar geosegmentos si existen
+            if (isset($data['geosegmentos']) && is_array($data['geosegmentos'])) {
+                foreach ($data['geosegmentos'] as $geosegmento) {
+                    ZonaGeo::create([
+                        'idZona' => $zona->idZona,
+                        'idGeosegmento' => $geosegmento['idGeosegmento'],
+                        'idCiclo' => $geosegmento['idCiclo'],
+                        'idEstado' => 1 // Activo por defecto
+                    ]);
+                }
+            }
+
+            DB::commit();
 
             return [
                 'success' => true,
@@ -36,6 +71,7 @@ class ZonaService
                 'data' => $zona
             ];
         } catch (\Exception $e) {
+            DB::rollBack();
             return [
                 'success' => false,
                 'message' => 'Error al crear la zona: ' . $e->getMessage()

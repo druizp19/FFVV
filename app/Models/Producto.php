@@ -210,5 +210,92 @@ class Producto extends Model
     {
         return $this->hasMany(FuerzaVenta::class, 'idProducto', 'idProducto');
     }
+
+    /**
+     * Genera una clave única para el producto basada en sus relaciones.
+     * Usa separador "_" para evitar ambigüedades en la concatenación.
+     *
+     * @return string
+     */
+    public function generarClaveUnica(): string
+    {
+        return implode('_', [
+            $this->idCiclo,
+            $this->idFranqLinea,
+            $this->idMarcaMkt,
+            $this->idCore,
+            $this->idCuota,
+            $this->idPromocion,
+            $this->idAlcance,
+        ]);
+    }
+
+    /**
+     * Genera una clave única para un conjunto de datos de producto.
+     * Usa separador "_" para evitar ambigüedades en la concatenación.
+     *
+     * @param array $data
+     * @return string
+     */
+    public static function generarClaveUnicaDesdeArray(array $data): string
+    {
+        return implode('_', [
+            $data['idCiclo'] ?? null,
+            $data['idFranqLinea'] ?? null,
+            $data['idMarcaMkt'] ?? null,
+            $data['idCore'] ?? null,
+            $data['idCuota'] ?? null,
+            $data['idPromocion'] ?? null,
+            $data['idAlcance'] ?? null,
+        ]);
+    }
+
+    /**
+     * Verifica si ya existe un producto con la misma combinación de parámetros.
+     *
+     * @param array $data
+     * @param int|null $excludeId ID del producto a excluir (para actualizaciones)
+     * @return bool
+     */
+    public static function existeDuplicado(array $data, ?int $excludeId = null): bool
+    {
+        $query = static::where([
+            'idCiclo' => $data['idCiclo'],
+            'idFranqLinea' => $data['idFranqLinea'],
+            'idMarcaMkt' => $data['idMarcaMkt'],
+            'idCore' => $data['idCore'],
+            'idCuota' => $data['idCuota'],
+            'idPromocion' => $data['idPromocion'],
+            'idAlcance' => $data['idAlcance'],
+        ]);
+
+        if ($excludeId) {
+            $query->where('idProducto', '!=', $excludeId);
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * Boot del modelo para validaciones automáticas.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($producto) {
+            if (static::existeDuplicado($producto->toArray())) {
+                $claveUnica = $producto->generarClaveUnica();
+                throw new \Exception("Ya existe un producto con la combinación: {$claveUnica}");
+            }
+        });
+
+        static::updating(function ($producto) {
+            if (static::existeDuplicado($producto->toArray(), $producto->idProducto)) {
+                $claveUnica = $producto->generarClaveUnica();
+                throw new \Exception("Ya existe otro producto con la combinación: {$claveUnica}");
+            }
+        });
+    }
 }
 

@@ -14,7 +14,7 @@ class CicloRepository
      */
     public function getAll(): Collection
     {
-        return Ciclo::orderBy('fechaInicio', 'desc')->get();
+        return Ciclo::with('estado')->orderBy('fechaInicio', 'desc')->get();
     }
 
     /**

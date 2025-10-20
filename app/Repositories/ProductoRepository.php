@@ -62,6 +62,29 @@ class ProductoRepository
     }
 
     /**
+     * Verifica si existe un producto duplicado con la misma combinación de parámetros.
+     *
+     * @param array $data
+     * @param int|null $excludeId ID del producto a excluir (para actualizaciones)
+     * @return bool
+     */
+    public function existeDuplicado(array $data, ?int $excludeId = null): bool
+    {
+        return Producto::existeDuplicado($data, $excludeId);
+    }
+
+    /**
+     * Obtiene la clave única de un producto basada en sus relaciones.
+     *
+     * @param array $data
+     * @return string
+     */
+    public function generarClaveUnica(array $data): string
+    {
+        return Producto::generarClaveUnicaDesdeArray($data);
+    }
+
+    /**
      * Actualiza un producto existente.
      *
      * @param int $id

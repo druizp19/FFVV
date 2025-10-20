@@ -72,6 +72,17 @@ class Geosegmento extends Model
     }
 
     /**
+     * Relación con el modelo Ubigeo.
+     * Un geosegmento puede tener muchos ubigeos.
+     *
+     * @return HasMany
+     */
+    public function ubigeos(): HasMany
+    {
+        return $this->hasMany(Ubigeo::class, 'idGeosegmento', 'idGeosegmento');
+    }
+
+    /**
      * Scope para filtrar geosegmentos activos.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query

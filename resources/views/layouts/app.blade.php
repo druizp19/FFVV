@@ -6,7 +6,21 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'PharmaSales - Gestión de Ventas')</title>
     
+    <!-- Prevenir flash de tema - Ejecutar antes de cargar CSS -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('pharmasales-theme');
+            const systemTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            const theme = savedTheme || systemTheme;
+            
+            if (theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+    
     @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/js/app.js', 'resources/js/sidebar.js'])
+    @stack('styles')
 </head>
 <body>
     <!-- Mobile Menu Button -->
@@ -50,30 +64,44 @@
                         <span>Ciclos</span>
                     </a>
                 </li>
+            </ul>
+        </nav>
+        <nav class="nav-section">
+            <h3>FUERZA DE VENTA</h3>
+            <ul class="nav-menu">
                 <li class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Representantes">
+                    <a href="{{ route('empleados.index') }}" class="nav-link {{ request()->routeIs('empleados.*') ? 'active' : '' }}" data-tooltip="Empleados">
                         <span class="nav-icon">👥</span>
-                        <span>Representantes</span>
+                        <span>Empleados</span>
                     </a>
                 </li>
+            </ul>
+        </nav>
+        <nav class="nav-section">
+            <h3>ZONAS</h3>
+            <ul class="nav-menu">
                 <li class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Supervisores">
-                        <span class="nav-icon">👨‍💼</span>
-                        <span>Supervisores</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Zonas">
+                    <a href="{{ route('zonas.index') }}" class="nav-link {{ request()->routeIs('zonas.*') ? 'active' : '' }}" data-tooltip="Zonas">
                         <span class="nav-icon">📍</span>
                         <span>Zonas</span>
                     </a>
                 </li>
+            </ul>
+        </nav>
+        <nav class="nav-section">
+            <h3>PRODUCTOS</h3>
+            <ul class="nav-menu">
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-tooltip="Productos">
                         <span class="nav-icon">📦</span>
                         <span>Productos</span>
                     </a>
                 </li>
+            </ul>
+        </nav>
+        <nav class="nav-section">
+            <h3>HISTORIAL</h3>
+            <ul class="nav-menu">
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-tooltip="Historial">
                         <span class="nav-icon">🕐</span>
@@ -97,6 +125,8 @@
             @yield('content')
         </div>
     </main>
+
+    @stack('scripts')
 </body>
 </html>
 
