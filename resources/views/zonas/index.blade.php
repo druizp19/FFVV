@@ -133,7 +133,7 @@
 
 <!-- Modal Crear/Editar Zona -->
 <div id="modalZona" class="modal">
-    <div class="modal-content modal-xl">
+    <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2 id="modalTitle">Nueva Zona</h2>
             <button class="modal-close" onclick="cerrarModal()">&times;</button>
@@ -141,39 +141,13 @@
         <form id="formZona" onsubmit="guardarZona(event)">
             <div class="modal-body">
                 <input type="hidden" id="zonaId">
+                <input type="hidden" id="idEstado" value="1">
                 
                 <!-- Información Básica -->
                 <div class="form-section">
-                    <h3 class="form-section-title">Información Básica</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="zona" class="form-label">Nombre de Zona *</label>
-                            <input type="text" id="zona" name="zona" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="idEstado" class="form-label">Estado *</label>
-                            <select id="idEstado" name="idEstado" class="form-select" required>
-                                <option value="">Seleccionar...</option>
-                                @foreach($estados as $estado)
-                                    <option value="{{ $estado->idEstado }}">{{ $estado->estado }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Asignación de Empleados -->
-                <div class="form-section">
-                    <div class="form-section-header">
-                        <h3 class="form-section-title">Empleados Asignados</h3>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="abrirModalAsignarEmpleado()">
-                            <span class="btn-icon">+</span>
-                            Asignar Empleado
-                        </button>
-                    </div>
-                    <div id="listaEmpleadosAsignados" class="lista-asignaciones">
-                        <p class="empty-message">No hay empleados asignados</p>
+                    <div class="form-group">
+                        <label for="zona" class="form-label">Nombre de Zona *</label>
+                        <input type="text" id="zona" name="zona" class="form-input" required>
                     </div>
                 </div>
 
@@ -200,46 +174,6 @@
     </div>
 </div>
 
-<!-- Modal Asignar Empleado -->
-<div id="modalAsignarEmpleado" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Asignar Empleado</h2>
-            <button class="modal-close" onclick="cerrarModalAsignarEmpleado()">&times;</button>
-        </div>
-        <form id="formAsignarEmpleado" onsubmit="agregarEmpleado(event)">
-            <div class="modal-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="empleadoSelect" class="form-label">Empleado *</label>
-                        <select id="empleadoSelect" name="idEmpleado" class="form-select" required>
-                            <option value="">Seleccionar...</option>
-                            @foreach($empleados as $empleado)
-                                <option value="{{ $empleado->idEmpleado }}">{{ $empleado->apeNombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="cicloEmpleado" class="form-label">Ciclo *</label>
-                        <select id="cicloEmpleado" name="idCiclo" class="form-select" required>
-                            <option value="">Seleccionar...</option>
-                            @foreach($ciclos as $ciclo)
-                                <option value="{{ $ciclo->idCiclo }}">{{ $ciclo->ciclo }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="cerrarModalAsignarEmpleado()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Agregar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <!-- Modal Asignar Geosegmento -->
 <div id="modalAsignarGeosegmento" class="modal">
     <div class="modal-content">
@@ -249,26 +183,52 @@
         </div>
         <form id="formAsignarGeosegmento" onsubmit="agregarGeosegmento(event)">
             <div class="modal-body">
-                <div class="form-row">
+                <!-- Selector o crear nuevo -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="radio" name="tipoGeosegmento" value="existente" checked onchange="toggleGeosegmentoMode()"> 
+                        Seleccionar existente
+                    </label>
+                    <label class="form-label" style="margin-left: 1.5rem;">
+                        <input type="radio" name="tipoGeosegmento" value="nuevo" onchange="toggleGeosegmentoMode()"> 
+                        Crear nuevo
+                    </label>
+                </div>
+
+                <!-- Selección de geosegmento existente -->
+                <div id="geosegmentoExistente">
                     <div class="form-group">
                         <label for="geosegmentoSelect" class="form-label">Geosegmento *</label>
-                        <select id="geosegmentoSelect" name="idGeosegmento" class="form-select" required>
+                        <select id="geosegmentoSelect" name="idGeosegmento" class="form-select">
                             <option value="">Seleccionar...</option>
                             @foreach($geosegmentos as $geosegmento)
                                 <option value="{{ $geosegmento->idGeosegmento }}">{{ $geosegmento->geosegmento }}</option>
                             @endforeach
                         </select>
                     </div>
-                    
+                </div>
+
+                <!-- Crear nuevo geosegmento -->
+                <div id="geosegmentoNuevo" style="display: none;">
                     <div class="form-group">
-                        <label for="cicloGeosegmento" class="form-label">Ciclo *</label>
-                        <select id="cicloGeosegmento" name="idCiclo" class="form-select" required>
-                            <option value="">Seleccionar...</option>
-                            @foreach($ciclos as $ciclo)
-                                <option value="{{ $ciclo->idCiclo }}">{{ $ciclo->ciclo }}</option>
-                            @endforeach
-                        </select>
+                        <label for="nuevoGeosegmento" class="form-label">Nombre del Geosegmento *</label>
+                        <input type="text" id="nuevoGeosegmento" name="nuevoGeosegmento" class="form-input">
                     </div>
+                    <div class="form-group">
+                        <label for="nuevoLugar" class="form-label">Lugar *</label>
+                        <input type="text" id="nuevoLugar" name="nuevoLugar" class="form-input">
+                    </div>
+                </div>
+
+                <!-- Ciclo (común para ambos) -->
+                <div class="form-group">
+                    <label for="cicloGeosegmento" class="form-label">Ciclo *</label>
+                    <select id="cicloGeosegmento" name="idCiclo" class="form-select" required>
+                        <option value="">Seleccionar...</option>
+                        @foreach($ciclos as $ciclo)
+                            <option value="{{ $ciclo->idCiclo }}">{{ $ciclo->ciclo }}</option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
             

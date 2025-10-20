@@ -127,13 +127,12 @@ class ZonaController extends Controller
     {
         $validated = $request->validate([
             'zona' => 'required|string|max:100',
-            'idEstado' => 'required|integer',
-            'empleados' => 'array',
-            'empleados.*.idEmpleado' => 'required|integer',
-            'empleados.*.idCiclo' => 'required|integer',
+            'idEstado' => 'sometimes|integer',
             'geosegmentos' => 'array',
-            'geosegmentos.*.idGeosegmento' => 'required|integer',
+            'geosegmentos.*.idGeosegmento' => 'nullable|integer',
             'geosegmentos.*.idCiclo' => 'required|integer',
+            'geosegmentos.*.nuevoGeosegmento' => 'nullable|string|max:100',
+            'geosegmentos.*.nuevoLugar' => 'nullable|string|max:100',
         ]);
 
         $result = $this->zonaService->crearZona($validated);

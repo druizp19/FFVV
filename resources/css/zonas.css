@@ -630,6 +630,18 @@
     cursor: pointer;
 }
 
+/* Radio buttons */
+.form-label input[type="radio"] {
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
+.form-label {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+}
+
 /* Form Sections */
 .form-section {
     margin-bottom: 1.5rem;

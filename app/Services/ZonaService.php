@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Repositories\ZonaRepository;
 use App\Models\Zona;
-use App\Models\ZonaEmp;
 use App\Models\ZonaGeo;
+use App\Models\Geosegmento;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -36,28 +36,29 @@ class ZonaService
             // Crear la zona
             $zona = $this->zonaRepository->create([
                 'zona' => $data['zona'],
-                'idEstado' => $data['idEstado']
+                'idEstado' => $data['idEstado'] ?? 1 // Activo por defecto
             ]);
-
-            // Asignar empleados si existen
-            if (isset($data['empleados']) && is_array($data['empleados'])) {
-                foreach ($data['empleados'] as $empleado) {
-                    ZonaEmp::create([
-                        'idZona' => $zona->idZona,
-                        'idEmpleado' => $empleado['idEmpleado'],
-                        'idCiclo' => $empleado['idCiclo'],
-                        'idEstado' => 1 // Activo por defecto
-                    ]);
-                }
-            }
 
             // Asignar geosegmentos si existen
             if (isset($data['geosegmentos']) && is_array($data['geosegmentos'])) {
-                foreach ($data['geosegmentos'] as $geosegmento) {
+                foreach ($data['geosegmentos'] as $geoData) {
+                    $idGeosegmento = $geoData['idGeosegmento'];
+                    
+                    // Si es un nuevo geosegmento, crearlo primero
+                    if (isset($geoData['nuevoGeosegmento']) && $geoData['nuevoGeosegmento']) {
+                        $nuevoGeo = Geosegmento::create([
+                            'geosegmento' => $geoData['nuevoGeosegmento'],
+                            'lugar' => $geoData['nuevoLugar'],
+                            'idEstado' => 1 // Activo por defecto
+                        ]);
+                        $idGeosegmento = $nuevoGeo->idGeosegmento;
+                    }
+                    
+                    // Crear la relación zona-geosegmento
                     ZonaGeo::create([
                         'idZona' => $zona->idZona,
-                        'idGeosegmento' => $geosegmento['idGeosegmento'],
-                        'idCiclo' => $geosegmento['idCiclo'],
+                        'idGeosegmento' => $idGeosegmento,
+                        'idCiclo' => $geoData['idCiclo'],
                         'idEstado' => 1 // Activo por defecto
                     ]);
                 }

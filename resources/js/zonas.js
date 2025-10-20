@@ -3,7 +3,6 @@
 // ============================================
 
 let zonaActualId = null;
-let empleadosAsignados = [];
 let geosegmentosAsignados = [];
 
 // ============================================
@@ -59,9 +58,7 @@ function abrirModalCrear() {
     document.getElementById('formZona').reset();
     
     // Limpiar asignaciones
-    empleadosAsignados = [];
     geosegmentosAsignados = [];
-    renderEmpleadosAsignados();
     renderGeosegmentosAsignados();
     
     document.getElementById('modalZona').classList.add('active');
@@ -92,7 +89,6 @@ function abrirModalEditar(id) {
 function cerrarModal() {
     document.getElementById('modalZona').classList.remove('active');
     document.getElementById('formZona').reset();
-    empleadosAsignados = [];
     geosegmentosAsignados = [];
 }
 
@@ -102,14 +98,12 @@ function guardarZona(event) {
     const id = document.getElementById('zonaId').value;
     const formData = {
         zona: document.getElementById('zona').value,
-        idEstado: document.getElementById('idEstado').value,
-        empleados: empleadosAsignados.map(e => ({
-            idEmpleado: e.idEmpleado,
-            idCiclo: e.idCiclo
-        })),
+        idEstado: 1, // Siempre activo por defecto
         geosegmentos: geosegmentosAsignados.map(g => ({
             idGeosegmento: g.idGeosegmento,
-            idCiclo: g.idCiclo
+            idCiclo: g.idCiclo,
+            nuevoGeosegmento: g.nuevoGeosegmento || null,
+            nuevoLugar: g.nuevoLugar || null
         }))
     };
     
@@ -597,50 +591,41 @@ if (searchUbigeo) {
 }
 
 // ============================================
+// Toggle entre crear nuevo y seleccionar existente
+// ============================================
+
+function toggleGeosegmentoMode() {
+    const tipoSeleccionado = document.querySelector('input[name="tipoGeosegmento"]:checked').value;
+    const existenteDiv = document.getElementById('geosegmentoExistente');
+    const nuevoDiv = document.getElementById('geosegmentoNuevo');
+    const geosegmentoSelect = document.getElementById('geosegmentoSelect');
+    const nuevoGeosegmento = document.getElementById('nuevoGeosegmento');
+    const nuevoLugar = document.getElementById('nuevoLugar');
+    
+    if (tipoSeleccionado === 'existente') {
+        existenteDiv.style.display = 'block';
+        nuevoDiv.style.display = 'none';
+        geosegmentoSelect.required = true;
+        nuevoGeosegmento.required = false;
+        nuevoLugar.required = false;
+    } else {
+        existenteDiv.style.display = 'none';
+        nuevoDiv.style.display = 'block';
+        geosegmentoSelect.required = false;
+        nuevoGeosegmento.required = true;
+        nuevoLugar.required = true;
+    }
+}
+
+// ============================================
 // Modales de Asignación
 // ============================================
 
-function abrirModalAsignarEmpleado() {
-    document.getElementById('formAsignarEmpleado').reset();
-    document.getElementById('modalAsignarEmpleado').classList.add('active');
-}
-
-function cerrarModalAsignarEmpleado() {
-    document.getElementById('modalAsignarEmpleado').classList.remove('active');
-}
-
-function agregarEmpleado(event) {
-    event.preventDefault();
-    
-    const empleadoSelect = document.getElementById('empleadoSelect');
-    const cicloSelect = document.getElementById('cicloEmpleado');
-    
-    const empleadoId = empleadoSelect.value;
-    const empleadoNombre = empleadoSelect.options[empleadoSelect.selectedIndex].text;
-    const cicloId = cicloSelect.value;
-    const cicloNombre = cicloSelect.options[cicloSelect.selectedIndex].text;
-    
-    // Verificar si ya está asignado
-    const yaAsignado = empleadosAsignados.some(e => e.idEmpleado === parseInt(empleadoId) && e.idCiclo === parseInt(cicloId));
-    if (yaAsignado) {
-        mostrarToast('Este empleado ya está asignado a este ciclo', 'warning');
-        return;
-    }
-    
-    empleadosAsignados.push({
-        idEmpleado: parseInt(empleadoId),
-        nombreEmpleado: empleadoNombre,
-        idCiclo: parseInt(cicloId),
-        nombreCiclo: cicloNombre
-    });
-    
-    renderEmpleadosAsignados();
-    cerrarModalAsignarEmpleado();
-    mostrarToast('Empleado agregado', 'success');
-}
-
 function abrirModalAsignarGeosegmento() {
     document.getElementById('formAsignarGeosegmento').reset();
+    // Reset al modo existente
+    document.querySelector('input[name="tipoGeosegmento"][value="existente"]').checked = true;
+    toggleGeosegmentoMode();
     document.getElementById('modalAsignarGeosegmento').classList.add('active');
 }
 
@@ -651,27 +636,54 @@ function cerrarModalAsignarGeosegmento() {
 function agregarGeosegmento(event) {
     event.preventDefault();
     
-    const geosegmentoSelect = document.getElementById('geosegmentoSelect');
+    const tipoSeleccionado = document.querySelector('input[name="tipoGeosegmento"]:checked').value;
     const cicloSelect = document.getElementById('cicloGeosegmento');
-    
-    const geosegmentoId = geosegmentoSelect.value;
-    const geosegmentoNombre = geosegmentoSelect.options[geosegmentoSelect.selectedIndex].text;
     const cicloId = cicloSelect.value;
     const cicloNombre = cicloSelect.options[cicloSelect.selectedIndex].text;
     
-    // Verificar si ya está asignado
-    const yaAsignado = geosegmentosAsignados.some(g => g.idGeosegmento === parseInt(geosegmentoId) && g.idCiclo === parseInt(cicloId));
-    if (yaAsignado) {
-        mostrarToast('Este geosegmento ya está asignado a este ciclo', 'warning');
-        return;
+    if (tipoSeleccionado === 'existente') {
+        // Seleccionar geosegmento existente
+        const geosegmentoSelect = document.getElementById('geosegmentoSelect');
+        const geosegmentoId = geosegmentoSelect.value;
+        const geosegmentoNombre = geosegmentoSelect.options[geosegmentoSelect.selectedIndex].text;
+        
+        if (!geosegmentoId) {
+            mostrarToast('Debe seleccionar un geosegmento', 'warning');
+            return;
+        }
+        
+        // Verificar si ya está asignado
+        const yaAsignado = geosegmentosAsignados.some(g => g.idGeosegmento === parseInt(geosegmentoId) && g.idCiclo === parseInt(cicloId));
+        if (yaAsignado) {
+            mostrarToast('Este geosegmento ya está asignado a este ciclo', 'warning');
+            return;
+        }
+        
+        geosegmentosAsignados.push({
+            idGeosegmento: parseInt(geosegmentoId),
+            nombreGeosegmento: geosegmentoNombre,
+            idCiclo: parseInt(cicloId),
+            nombreCiclo: cicloNombre
+        });
+    } else {
+        // Crear nuevo geosegmento
+        const nuevoGeosegmento = document.getElementById('nuevoGeosegmento').value;
+        const nuevoLugar = document.getElementById('nuevoLugar').value;
+        
+        if (!nuevoGeosegmento || !nuevoLugar) {
+            mostrarToast('Debe completar todos los campos del nuevo geosegmento', 'warning');
+            return;
+        }
+        
+        geosegmentosAsignados.push({
+            idGeosegmento: null, // Será creado
+            nombreGeosegmento: nuevoGeosegmento,
+            nuevoGeosegmento: nuevoGeosegmento,
+            nuevoLugar: nuevoLugar,
+            idCiclo: parseInt(cicloId),
+            nombreCiclo: cicloNombre
+        });
     }
-    
-    geosegmentosAsignados.push({
-        idGeosegmento: parseInt(geosegmentoId),
-        nombreGeosegmento: geosegmentoNombre,
-        idCiclo: parseInt(cicloId),
-        nombreCiclo: cicloNombre
-    });
     
     renderGeosegmentosAsignados();
     cerrarModalAsignarGeosegmento();
@@ -681,37 +693,6 @@ function agregarGeosegmento(event) {
 // ============================================
 // Renderizar Listas de Asignaciones
 // ============================================
-
-function renderEmpleadosAsignados() {
-    const container = document.getElementById('listaEmpleadosAsignados');
-    
-    if (empleadosAsignados.length === 0) {
-        container.innerHTML = '<p class="empty-message">No hay empleados asignados</p>';
-        return;
-    }
-    
-    let html = '';
-    empleadosAsignados.forEach((empleado, index) => {
-        html += `
-            <div class="asignacion-item">
-                <div class="asignacion-info">
-                    <div class="asignacion-nombre">${empleado.nombreEmpleado}</div>
-                    <div class="asignacion-detalle">Ciclo: ${empleado.nombreCiclo}</div>
-                </div>
-                <div class="asignacion-actions">
-                    <button type="button" class="btn-remove" onclick="removerEmpleado(${index})" title="Eliminar">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
 
 function renderGeosegmentosAsignados() {
     const container = document.getElementById('listaGeosegmentosAsignados');
@@ -723,10 +704,11 @@ function renderGeosegmentosAsignados() {
     
     let html = '';
     geosegmentosAsignados.forEach((geosegmento, index) => {
+        const etiqueta = geosegmento.nuevoGeosegmento ? ' (Nuevo)' : '';
         html += `
             <div class="asignacion-item">
                 <div class="asignacion-info">
-                    <div class="asignacion-nombre">${geosegmento.nombreGeosegmento}</div>
+                    <div class="asignacion-nombre">${geosegmento.nombreGeosegmento}${etiqueta}</div>
                     <div class="asignacion-detalle">Ciclo: ${geosegmento.nombreCiclo}</div>
                 </div>
                 <div class="asignacion-actions">
@@ -744,12 +726,6 @@ function renderGeosegmentosAsignados() {
     container.innerHTML = html;
 }
 
-function removerEmpleado(index) {
-    empleadosAsignados.splice(index, 1);
-    renderEmpleadosAsignados();
-    mostrarToast('Empleado removido', 'success');
-}
-
 function removerGeosegmento(index) {
     geosegmentosAsignados.splice(index, 1);
     renderGeosegmentosAsignados();
@@ -759,10 +735,6 @@ function removerGeosegmento(index) {
 // ============================================
 // Asignar/Desasignar desde el detalle (placeholder)
 // ============================================
-
-function abrirModalAsignarEmpleadoDetalle() {
-    mostrarToast('Funcionalidad en desarrollo', 'warning');
-}
 
 function abrirModalAsignarGeosegmentoDetalle() {
     mostrarToast('Funcionalidad en desarrollo', 'warning');
@@ -807,12 +779,6 @@ document.getElementById('modalZona')?.addEventListener('click', function(e) {
 document.getElementById('modalDetalle')?.addEventListener('click', function(e) {
     if (e.target === this) {
         cerrarModalDetalle();
-    }
-});
-
-document.getElementById('modalAsignarEmpleado')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        cerrarModalAsignarEmpleado();
     }
 });
 
