@@ -31,55 +31,63 @@
 
 /* Logo Section */
 .logo-container {
-    padding: 24px 20px;
+    padding: 20px 16px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--border-primary);
-    min-height: 80px;
-}
-
-.logo {
-    font-size: 32px;
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .logo-text {
     opacity: 1;
     transition: opacity 0.2s ease;
-}
-
-.sidebar.collapsed .logo-text {
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
+    text-align: center;
+    width: 100%;
 }
 
 .logo-text h1 {
-    font-size: 20px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
     white-space: nowrap;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
-.logo-text p {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    margin: 2px 0 0 0;
-    white-space: nowrap;
+.logo {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    object-fit: contain;
+    transition: all 0.3s ease;
+}
+
+/* Adaptación al tema oscuro */
+[data-theme="dark"] .logo {
+    filter: brightness(0) invert(1);
+}
+
+[data-theme="light"] .logo {
+    filter: none;
+}
+
+.sidebar.collapsed .logo-text {
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.sidebar.collapsed .logo {
+    max-width: 48px;
 }
 
 /* Toggle Button */
 .sidebar-toggle {
     position: absolute;
     top: 8px;
-    right: 0px;
+    right: 2px;
     width: 32px;
     height: 32px;
     background: var(--bg-secondary);
@@ -201,16 +209,11 @@
 }
 
 .nav-icon {
-    font-size: 20px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    position: relative; /* Habilita el poder moverlo */
-    top: -1px;
+    stroke-width: 2;
+    color: currentColor;
 }
 
 .nav-link span:last-child {
@@ -291,8 +294,28 @@
 }
 
 .theme-icon {
-    font-size: 20px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+    stroke-width: 2;
+    color: currentColor;
+}
+
+/* Theme Icon States */
+.sun-icon {
+    display: none;
+}
+
+.moon-icon {
+    display: block;
+}
+
+[data-theme="light"] .sun-icon {
+    display: block;
+}
+
+[data-theme="light"] .moon-icon {
+    display: none;
 }
 
 .theme-toggle span:last-child {

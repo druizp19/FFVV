@@ -183,9 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('✅ Sidebar inicializado');
 });
-
 /**
  * Funciones disponibles globalmente
  */
 // Las funciones ya están definidas globalmente arriba, no necesitan export
+
 
