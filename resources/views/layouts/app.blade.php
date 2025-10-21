@@ -6,7 +6,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'PharmaSales - Gestión de Ventas')</title>
     
-    <!-- Prevenir flash de tema - Ejecutar antes de cargar CSS -->
+    <!-- Vite CSS -->
+    @vite(['resources/css/app.css', 'resources/css/layout.css', 'resources/css/theme.css', 'resources/css/sidebar.css'])
+    @stack('styles')
+    
+    <!-- Prevenir flash de tema - Ejecutar antes de renderizar -->
     <script>
         (function() {
             const savedTheme = localStorage.getItem('pharmasales-theme');
@@ -19,8 +23,13 @@
         })();
     </script>
     
-    @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/js/app.js', 'resources/js/sidebar.js'])
-    @stack('styles')
+    <style>
+        /* Prevenir FOUC */
+        html {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
 </head>
 <body>
     <!-- Mobile Menu Button -->
@@ -126,6 +135,8 @@
         </div>
     </main>
 
+    <!-- Vite JS -->
+    @vite(['resources/js/theme.js', 'resources/js/sidebar.js'])
     @stack('scripts')
 </body>
 </html>

@@ -69,7 +69,7 @@ class EmpleadoController extends Controller
         
         // Obtener empleados con paginación (15 por página) y mantener parámetros de búsqueda
         $empleados = $query->orderBy('idEmpleado', 'desc')
-            ->paginate(15)
+            ->paginate(10)
             ->appends($request->except('page'));
         
         $cargos = $this->cargoService->getAllCargos();

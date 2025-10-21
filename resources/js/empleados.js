@@ -1,108 +1,160 @@
-/**
- * Empleados Module - PharmaSales
- * Gestión de empleados y sus cargos
- */
+/* ============================================
+   EMPLEADOS MODULE - JavaScript
+   ============================================ */
 
-// Variables globales
-let empleadoIdParaDesactivar = null;
+// Estado global
+let employeeToDeactivate = null;
+
+/* ====================
+   MODAL MANAGEMENT
+   ==================== */
 
 /**
- * Abre el modal para crear un nuevo empleado
+ * Abre el modal para crear o editar empleado
  */
-function abrirModalCrear() {
-    document.getElementById('modalTitle').textContent = 'Nuevo Empleado';
-    document.getElementById('empleadoForm').reset();
-    document.getElementById('empleadoId').value = '';
+function openModal(mode, employeeId = null) {
+    const modal = document.getElementById('employeeModal');
+    const title = document.getElementById('modalTitle');
+    const form = document.getElementById('employeeForm');
+    const estadoGroup = document.getElementById('estadoGroup');
+    const idEstadoSelect = document.getElementById('idEstado');
     
-    // Establecer fecha de ingreso por defecto (hoy)
-    const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fechaIngreso').value = hoy;
+    form.reset();
+    document.getElementById('employeeId').value = '';
     
-    document.getElementById('empleadoModal').classList.add('active');
-}
-
-/**
- * Abre el modal para editar un empleado existente
- */
-async function abrirModalEditar(id) {
-    try {
-        const response = await fetch(`/empleados/${id}`);
-        const result = await response.json();
-
-        if (!result.success) {
-            mostrarToast('error', 'Error', result.message);
-            return;
+    if (mode === 'create') {
+        title.textContent = 'Nuevo Empleado';
+        // Ocultar selector de estado y establecer "Activo" por defecto
+        estadoGroup.style.display = 'none';
+        idEstadoSelect.removeAttribute('required');
+        // Encontrar y seleccionar "Activo" (estado 1)
+        const activeOption = Array.from(idEstadoSelect.options).find(opt => opt.value == '1');
+        if (activeOption) {
+            idEstadoSelect.value = activeOption.value;
         }
-
-        const empleado = result.data;
-
-        document.getElementById('modalTitle').textContent = 'Editar Empleado';
-        document.getElementById('empleadoId').value = empleado.idEmpleado;
-        document.getElementById('dni').value = empleado.dni;
-        document.getElementById('nombre').value = empleado.nombre;
-        document.getElementById('apeNombre').value = empleado.apeNombre;
-        document.getElementById('correo').value = empleado.correo;
-        document.getElementById('celular').value = empleado.celular || '';
-        document.getElementById('idCargo').value = empleado.idCargo;
-        document.getElementById('idArea').value = empleado.idArea;
-        document.getElementById('idUne').value = empleado.idUne;
-        document.getElementById('idEstado').value = empleado.idEstado;
-        
-        // Formatear fechas para el input date
-        if (empleado.fechaIngreso) {
-            const fechaIngreso = new Date(empleado.fechaIngreso);
-            document.getElementById('fechaIngreso').value = fechaIngreso.toISOString().split('T')[0];
-        }
-        
-        if (empleado.fechaCese) {
-            const fechaCese = new Date(empleado.fechaCese);
-            document.getElementById('fechaCese').value = fechaCese.toISOString().split('T')[0];
-        }
-
-        document.getElementById('empleadoModal').classList.add('active');
-    } catch (error) {
-        console.error('Error al cargar empleado:', error);
-        mostrarToast('error', 'Error', 'No se pudo cargar la información del empleado');
+    } else if (mode === 'edit' && employeeId) {
+        title.textContent = 'Editar Empleado';
+        // Mostrar selector de estado en modo edición
+        estadoGroup.style.display = 'block';
+        idEstadoSelect.setAttribute('required', 'required');
+        loadEmployeeData(employeeId);
     }
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 /**
  * Cierra el modal de empleado
  */
-function cerrarModal() {
-    document.getElementById('empleadoModal').classList.remove('active');
-    document.getElementById('empleadoForm').reset();
+function closeModal() {
+    const modal = document.getElementById('employeeModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
 }
 
 /**
- * Guarda un empleado (crear o actualizar)
+ * Abre el modal de confirmación
  */
-async function guardarEmpleado(event) {
-    event.preventDefault();
+function confirmDeactivate(employeeId, employeeName) {
+    employeeToDeactivate = employeeId;
+    const modal = document.getElementById('confirmModal');
+    const message = document.getElementById('confirmMessage');
+    
+    message.textContent = `¿Estás seguro de que deseas desactivar a ${employeeName}?`;
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
 
-    const form = event.target;
-    const empleadoId = document.getElementById('empleadoId').value;
-    const formData = new FormData(form);
+/**
+ * Cierra el modal de confirmación
+ */
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    employeeToDeactivate = null;
+}
 
-    // Convertir FormData a objeto
-    const data = {
-        idCargo: parseInt(formData.get('idCargo')),
-        idArea: parseInt(formData.get('idArea')),
-        idUne: parseInt(formData.get('idUne')),
-        idEstado: parseInt(formData.get('idEstado')),
-        dni: formData.get('dni'),
-        nombre: formData.get('nombre'),
-        apeNombre: formData.get('apeNombre'),
-        correo: formData.get('correo'),
-        celular: formData.get('celular') || null,
-        fechaIngreso: formData.get('fechaIngreso'),
-        fechaCese: formData.get('fechaCese') || null,
-    };
+// Cerrar modales con tecla ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeModal();
+        closeConfirmModal();
+    }
+});
 
-    const url = empleadoId ? `/empleados/${empleadoId}` : '/empleados';
-    const method = empleadoId ? 'PUT' : 'POST';
+/* ====================
+   CRUD OPERATIONS
+   ==================== */
 
+/**
+ * Carga los datos de un empleado para editar
+ */
+async function loadEmployeeData(employeeId) {
     try {
+        const response = await fetch(`/empleados/${employeeId}`);
+        
+        if (!response.ok) {
+            throw new Error('Error al cargar los datos del empleado');
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Error al cargar el empleado');
+        }
+        
+        const employee = result.data;
+        
+        // Llenar el formulario
+        document.getElementById('employeeId').value = employee.idEmpleado || '';
+        document.getElementById('dni').value = employee.dni || '';
+        document.getElementById('nombre').value = employee.nombre || '';
+        document.getElementById('apeNombre').value = employee.apeNombre || '';
+        document.getElementById('correo').value = employee.correo || '';
+        document.getElementById('idCargo').value = employee.idCargo || '';
+        document.getElementById('idArea').value = employee.idArea || '';
+        document.getElementById('idUNE').value = employee.idUne || '';
+        document.getElementById('idEstado').value = employee.idEstado || '';
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showToast(error.message || 'Error al cargar el empleado', 'error');
+    }
+}
+
+/**
+ * Edita un empleado
+ */
+function editEmployee(employeeId) {
+    openModal('edit', employeeId);
+}
+
+/**
+ * Guarda un empleado (crear o editar)
+ */
+async function saveEmployee(event) {
+    event.preventDefault();
+    
+    const employeeId = document.getElementById('employeeId').value;
+    const isEditing = employeeId !== '';
+    
+    const data = {
+        dni: document.getElementById('dni').value.trim(),
+        nombre: document.getElementById('nombre').value.trim(),
+        apeNombre: document.getElementById('apeNombre').value.trim(),
+        correo: document.getElementById('correo').value.trim() || null,
+        idCargo: parseInt(document.getElementById('idCargo').value),
+        idArea: parseInt(document.getElementById('idArea').value),
+        idUNE: parseInt(document.getElementById('idUNE').value),
+        idEstado: parseInt(document.getElementById('idEstado').value),
+    };
+    
+    try {
+        const url = isEditing ? `/empleados/${employeeId}` : '/empleados';
+        const method = isEditing ? 'PUT' : 'POST';
+        
         const response = await fetch(url, {
             method: method,
             headers: {
@@ -111,202 +163,180 @@ async function guardarEmpleado(event) {
             },
             body: JSON.stringify(data)
         });
-
+        
         const result = await response.json();
-
+        
         if (result.success) {
-            mostrarToast('success', '¡Éxito!', result.message);
-            cerrarModal();
-            
-            // Recargar la página después de un breve delay
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+            showToast(
+                isEditing ? 'Empleado actualizado exitosamente' : 'Empleado creado exitosamente',
+                'success'
+            );
+            closeModal();
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            mostrarToast('error', 'Error', result.message);
+            showToast(result.message || 'Error al guardar el empleado', 'error');
         }
+        
     } catch (error) {
-        console.error('Error al guardar empleado:', error);
-        mostrarToast('error', 'Error', 'No se pudo guardar el empleado');
+        console.error('Error:', error);
+        showToast('Error al procesar la solicitud', 'error');
     }
 }
 
 /**
- * Abre el modal de confirmación para desactivar un empleado
+ * Desactiva un empleado
  */
-function confirmarDesactivar(id, nombreCompleto) {
-    empleadoIdParaDesactivar = id;
-    document.getElementById('confirmMessage').textContent = 
-        `¿Estás seguro de que deseas desactivar al empleado "${nombreCompleto}"? Esta acción cambiará su estado a Inactivo.`;
-    document.getElementById('confirmModal').classList.add('active');
-}
-
-/**
- * Cierra el modal de confirmación
- */
-function cerrarModalConfirmar() {
-    document.getElementById('confirmModal').classList.remove('active');
-    empleadoIdParaDesactivar = null;
-}
-
-/**
- * Desactiva un empleado (cambia estado a inactivo)
- */
-async function desactivarEmpleado() {
-    if (!empleadoIdParaDesactivar) return;
-
+async function deactivateEmployee() {
+    if (!employeeToDeactivate) return;
+    
     try {
-        const response = await fetch(`/empleados/${empleadoIdParaDesactivar}`, {
+        const response = await fetch(`/empleados/${employeeToDeactivate}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             }
         });
-
+        
         const result = await response.json();
-
+        
         if (result.success) {
-            mostrarToast('success', '¡Éxito!', result.message);
-            cerrarModalConfirmar();
-            
-            // Recargar la página después de un breve delay
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+            showToast('Empleado desactivado exitosamente', 'success');
+            closeConfirmModal();
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            mostrarToast('error', 'Error', result.message);
+            showToast(result.message || 'Error al desactivar el empleado', 'error');
         }
+        
     } catch (error) {
-        console.error('Error al desactivar empleado:', error);
-        mostrarToast('error', 'Error', 'No se pudo desactivar el empleado');
+        console.error('Error:', error);
+        showToast('Error al procesar la solicitud', 'error');
     }
 }
 
+/* ====================
+   SEARCH & FILTERS
+   ==================== */
+
+let searchTimeout;
+
 /**
- * Aplica los filtros al formulario
+ * Búsqueda de empleados con debounce
  */
-function aplicarFiltros() {
-    // Sincronizar el valor de búsqueda
-    const searchInput = document.getElementById('searchInput');
-    const searchHidden = document.getElementById('searchHidden');
-    if (searchInput && searchHidden) {
-        searchHidden.value = searchInput.value;
-    }
+function searchEmployees() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        applyFilters();
+    }, 300);
+}
+
+/**
+ * Aplica todos los filtros
+ */
+function applyFilters() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const filterCargo = document.getElementById('filterCargo').value;
+    const filterArea = document.getElementById('filterArea').value;
+    const filterUNE = document.getElementById('filterUNE').value;
     
-    // Enviar el formulario
-    document.getElementById('filtersForm').submit();
+    const rows = document.querySelectorAll('#employeesTable tr');
+    
+    rows.forEach(row => {
+        const nombre = row.querySelector('.employee-name')?.textContent.toLowerCase() || '';
+        const apellido = row.querySelector('.employee-subtitle')?.textContent.toLowerCase() || '';
+        const dni = row.querySelector('.badge-light')?.textContent.toLowerCase() || '';
+        const cargo = row.children[2]?.textContent || '';
+        const area = row.children[3]?.textContent || '';
+        const une = row.children[4]?.textContent || '';
+        
+        const matchSearch = nombre.includes(search) || 
+                          apellido.includes(search) || 
+                          dni.includes(search) ||
+                          cargo.toLowerCase().includes(search);
+        
+        const matchCargo = !filterCargo || cargo === document.querySelector(`#filterCargo option[value="${filterCargo}"]`)?.textContent;
+        const matchArea = !filterArea || area === document.querySelector(`#filterArea option[value="${filterArea}"]`)?.textContent;
+        const matchUNE = !filterUNE || une === document.querySelector(`#filterUNE option[value="${filterUNE}"]`)?.textContent;
+        
+        if (matchSearch && matchCargo && matchArea && matchUNE) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 
 /**
  * Limpia todos los filtros
  */
-function limpiarFiltros() {
-    // Redirigir a la página sin parámetros
-    window.location.href = window.location.pathname;
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterCargo').value = '';
+    document.getElementById('filterArea').value = '';
+    document.getElementById('filterUNE').value = '';
+    applyFilters();
 }
 
-/**
- * Maneja la búsqueda en tiempo real con debounce
- */
-let searchTimeout;
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    
-    if (searchInput) {
-        searchInput.addEventListener('keyup', function(e) {
-            clearTimeout(searchTimeout);
-            
-            // Si presiona Enter, aplicar inmediatamente
-            if (e.key === 'Enter') {
-                aplicarFiltros();
-                return;
-            }
-            
-            // Aplicar filtros después de 500ms de inactividad
-            searchTimeout = setTimeout(function() {
-                aplicarFiltros();
-            }, 500);
-        });
-    }
-});
+/* ====================
+   TOAST NOTIFICATIONS
+   ==================== */
 
 /**
- * Muestra un toast notification
+ * Muestra una notificación toast
+ * @param {string} message - Mensaje a mostrar
+ * @param {string} type - Tipo: 'success', 'error', 'warning'
  */
-function mostrarToast(tipo, titulo, mensaje) {
-    const container = document.getElementById('toast-container');
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
     
     const toast = document.createElement('div');
-    toast.className = `toast ${tipo}`;
+    toast.className = `toast toast-${type}`;
     
-    const iconos = {
-        success: '✓',
-        error: '✕',
-        warning: '⚠',
-        info: 'ℹ'
-    };
+    const icon = type === 'success' 
+        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>'
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>';
     
     toast.innerHTML = `
-        <div class="toast-icon">${iconos[tipo] || 'ℹ'}</div>
+        <div class="toast-icon">${icon}</div>
         <div class="toast-content">
-            <div class="toast-title">${titulo}</div>
-            <div class="toast-message">${mensaje}</div>
+            <p class="toast-title">${type === 'success' ? 'Éxito' : 'Error'}</p>
+            <p class="toast-message">${message}</p>
         </div>
-        <button class="toast-close" onclick="cerrarToast(this)">×</button>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
     `;
     
     container.appendChild(toast);
     
-    // Auto cerrar después de 5 segundos
+    // Auto-remover después de 5 segundos
     setTimeout(() => {
-        cerrarToast(toast.querySelector('.toast-close'));
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
     }, 5000);
 }
 
-/**
- * Cierra un toast notification
- */
-function cerrarToast(button) {
-    const toast = button.parentElement;
-    toast.classList.add('removing');
-    
-    setTimeout(() => {
-        toast.remove();
-    }, 300);
-}
+/* ====================
+   INITIALIZATION
+   ==================== */
 
-/**
- * Cerrar modales al hacer clic fuera de ellos
- */
-window.addEventListener('click', function(event) {
-    const empleadoModal = document.getElementById('empleadoModal');
-    const confirmModal = document.getElementById('confirmModal');
-    
-    if (event.target === empleadoModal) {
-        cerrarModal();
-    }
-    
-    if (event.target === confirmModal) {
-        cerrarModalConfirmar();
-    }
-});
+// Hacer funciones disponibles globalmente
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.confirmDeactivate = confirmDeactivate;
+window.closeConfirmModal = closeConfirmModal;
+window.editEmployee = editEmployee;
+window.saveEmployee = saveEmployee;
+window.deactivateEmployee = deactivateEmployee;
+window.searchEmployees = searchEmployees;
+window.applyFilters = applyFilters;
+window.clearFilters = clearFilters;
+window.showToast = showToast;
 
-/**
- * Cerrar modales con la tecla ESC
- */
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        const empleadoModal = document.getElementById('empleadoModal');
-        const confirmModal = document.getElementById('confirmModal');
-        
-        if (empleadoModal.classList.contains('active')) {
-            cerrarModal();
-        }
-        
-        if (confirmModal.classList.contains('active')) {
-            cerrarModalConfirmar();
-        }
-    }
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Módulo de Empleados cargado');
 });
 

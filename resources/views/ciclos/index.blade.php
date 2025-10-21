@@ -185,3 +185,11 @@
 <!-- Contenedor de Toasts -->
 <div id="toast-container" class="toast-container"></div>
 @endsection
+
+@push('styles')
+@vite('resources/css/ciclos.css')
+@endpush
+
+@push('scripts')
+@vite('resources/js/ciclos.js')
+@endpush

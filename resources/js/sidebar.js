@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Exportar funciones para uso en otros módulos
+ * Funciones disponibles globalmente
  */
-export { initSidebar, toggleSidebar, toggleMobileSidebar, closeMobileSidebar };
+// Las funciones ya están definidas globalmente arriba, no necesitan export
 

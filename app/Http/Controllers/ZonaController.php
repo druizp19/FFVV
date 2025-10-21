@@ -45,34 +45,28 @@ class ZonaController extends Controller
      */
     public function index(Request $request): View
     {
-        // Obtener todos los ciclos para el selector
-        $ciclos = $this->cicloService->getAllCiclos();
+        // Obtener todos los ciclos con la relación estado cargada
+        $ciclos = \App\Models\Ciclo::with('estado')->get();
         
         // Si hay un ciclo seleccionado, obtener datos filtrados por ese ciclo
         $cicloSeleccionado = $request->get('ciclo');
         
-        // Query base con relaciones filtradas por ciclo
+        // Query base: SIEMPRE traer todas las zonas
+        $query = \App\Models\Zona::with(['estado']);
+        
+        // Si hay ciclo seleccionado, cargar relaciones filtradas por ciclo
         if ($cicloSeleccionado) {
-            $query = \App\Models\Zona::with([
-                'estado',
+            $query->with([
                 'zonasEmpleados' => function ($q) use ($cicloSeleccionado) {
-                    $q->where('idCiclo', $cicloSeleccionado);
+                    $q->where('idCiclo', $cicloSeleccionado)->with('empleado');
                 },
                 'zonasGeosegmentos' => function ($q) use ($cicloSeleccionado) {
-                    $q->where('idCiclo', $cicloSeleccionado);
+                    $q->where('idCiclo', $cicloSeleccionado)->with('geosegmento');
                 }
             ]);
-            
-            // Filtrar zonas que tengan asignaciones en ese ciclo
-            $query->where(function($q) use ($cicloSeleccionado) {
-                $q->whereHas('zonasEmpleados', function ($subQ) use ($cicloSeleccionado) {
-                    $subQ->where('idCiclo', $cicloSeleccionado);
-                })->orWhereHas('zonasGeosegmentos', function ($subQ) use ($cicloSeleccionado) {
-                    $subQ->where('idCiclo', $cicloSeleccionado);
-                });
-            });
         } else {
-            $query = \App\Models\Zona::with(['estado', 'zonasEmpleados', 'zonasGeosegmentos']);
+            // Sin ciclo seleccionado, cargar todas las relaciones
+            $query->with(['zonasEmpleados.empleado', 'zonasGeosegmentos.geosegmento']);
         }
         
         // Aplicar filtros si existen
