@@ -31,6 +31,15 @@ class ZonaService
     public function crearZona(array $data): array
     {
         try {
+            // Validar que el nombre de la zona no esté duplicado
+            $existingZona = \App\Models\Zona::where('zona', $data['zona'])->first();
+            if ($existingZona) {
+                return [
+                    'success' => false,
+                    'message' => 'El nombre de la zona ya existe. Por favor, elige un nombre diferente.'
+                ];
+            }
+            
             DB::beginTransaction();
             
             // Crear la zona
@@ -83,6 +92,19 @@ class ZonaService
     public function actualizarZona(int $id, array $data): array
     {
         try {
+            // Validar que el nombre de la zona no esté duplicado (excluyendo la zona actual)
+            if (isset($data['zona'])) {
+                $existingZona = \App\Models\Zona::where('zona', $data['zona'])
+                    ->where('idZona', '!=', $id)
+                    ->first();
+                if ($existingZona) {
+                    return [
+                        'success' => false,
+                        'message' => 'El nombre de la zona ya existe. Por favor, elige un nombre diferente.'
+                    ];
+                }
+            }
+            
             $updated = $this->zonaRepository->update($id, $data);
 
             if (!$updated) {

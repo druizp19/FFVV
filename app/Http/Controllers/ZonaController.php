@@ -58,15 +58,26 @@ class ZonaController extends Controller
         if ($cicloSeleccionado) {
             $query->with([
                 'zonasEmpleados' => function ($q) use ($cicloSeleccionado) {
-                    $q->where('idCiclo', $cicloSeleccionado)->with('empleado');
+                    $q->where('idCiclo', $cicloSeleccionado)
+                      ->where('idEstado', 1)
+                      ->with('empleado');
                 },
                 'zonasGeosegmentos' => function ($q) use ($cicloSeleccionado) {
-                    $q->where('idCiclo', $cicloSeleccionado)->with('geosegmento');
+                    $q->where('idCiclo', $cicloSeleccionado)
+                      ->where('idEstado', 1)
+                      ->with('geosegmento');
                 }
             ]);
         } else {
-            // Sin ciclo seleccionado, cargar todas las relaciones
-            $query->with(['zonasEmpleados.empleado', 'zonasGeosegmentos.geosegmento']);
+            // Sin ciclo seleccionado, cargar todas las relaciones activas
+            $query->with([
+                'zonasEmpleados' => function ($q) {
+                    $q->where('idEstado', 1)->with('empleado');
+                },
+                'zonasGeosegmentos' => function ($q) {
+                    $q->where('idEstado', 1)->with('geosegmento');
+                }
+            ]);
         }
         
         // Aplicar filtros si existen
@@ -89,14 +100,22 @@ class ZonaController extends Controller
     }
 
     /**
-     * Obtiene una zona por su ID con sus asignaciones.
+     * Obtiene una zona por su ID con sus asignaciones activas.
      *
      * @param int $id
      * @return JsonResponse
      */
     public function show(int $id): JsonResponse
     {
-        $zona = $this->zonaService->getZonaById($id);
+        $zona = \App\Models\Zona::with([
+            'estado',
+            'zonasEmpleados' => function ($q) {
+                $q->where('idEstado', 1);
+            },
+            'zonasGeosegmentos' => function ($q) {
+                $q->where('idEstado', 1);
+            }
+        ])->find($id);
 
         if (!$zona) {
             return response()->json([
@@ -144,7 +163,7 @@ class ZonaController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $validated = $request->validate([
-            'zona' => 'sometimes|required|string|max:100',
+            'zona' => 'sometimes|required|string|max:100|unique:ODS.TAB_ZONA,zona,' . $id . ',idZona',
             'idEstado' => 'sometimes|required|integer',
         ]);
 
@@ -186,6 +205,7 @@ class ZonaController extends Controller
         
         $zona = \App\Models\Zona::with([
             'zonasEmpleados' => function ($q) use ($cicloId) {
+                $q->where('idEstado', 1);
                 if ($cicloId) {
                     $q->where('idCiclo', $cicloId);
                 }
@@ -209,7 +229,7 @@ class ZonaController extends Controller
     }
 
     /**
-     * Obtiene los geosegmentos asignados a una zona.
+     * Obtiene los geosegmentos asignados a una zona (activos e inactivos).
      *
      * @param Request $request
      * @param int $id
@@ -221,6 +241,7 @@ class ZonaController extends Controller
         
         $zona = \App\Models\Zona::with([
             'zonasGeosegmentos' => function ($q) use ($cicloId) {
+                // Traer todos los geosegmentos (activos e inactivos)
                 if ($cicloId) {
                     $q->where('idCiclo', $cicloId);
                 }
@@ -237,9 +258,16 @@ class ZonaController extends Controller
             ], 404);
         }
 
+        // Separar activos e inactivos
+        $activos = $zona->zonasGeosegmentos->where('idEstado', 1);
+        $inactivos = $zona->zonasGeosegmentos->where('idEstado', 0);
+
         return response()->json([
             'success' => true,
-            'data' => $zona->zonasGeosegmentos
+            'data' => [
+                'activos' => $activos->values(),
+                'inactivos' => $inactivos->values()
+            ]
         ]);
     }
 
@@ -256,6 +284,7 @@ class ZonaController extends Controller
         
         $zona = \App\Models\Zona::with([
             'zonasGeosegmentos' => function ($q) use ($cicloId) {
+                $q->where('idEstado', 1);
                 if ($cicloId) {
                     $q->where('idCiclo', $cicloId);
                 }
@@ -282,6 +311,395 @@ class ZonaController extends Controller
             'success' => true,
             'data' => $ubigeos->unique('idUbigeo')->values()
         ]);
+    }
+
+    /**
+     * Desactiva un geosegmento de una zona (cambia estado a 0 en ZonaGeo).
+     *
+     * @param int $id El ID de la relación ZonaGeo
+     * @return JsonResponse
+     */
+    public function deactivateGeosegmentFromZone(int $id): JsonResponse
+    {
+        try {
+            $zonaGeo = \App\Models\ZonaGeo::with('ciclo.estado')->find($id);
+
+            if (!$zonaGeo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Relación no encontrada.'
+                ], 404);
+            }
+
+            // Verificar si el ciclo está cerrado (por fecha o por estado)
+            if ($zonaGeo->ciclo) {
+                $ciclo = $zonaGeo->ciclo;
+                $esCerrado = false;
+                
+                // Verificar por fecha de fin
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                // Fallback: verificar por estado si no hay fecha usando la RELACIÓN, no el accesor
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            $zonaGeo->idEstado = 0;
+            $zonaGeo->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Geosegmento desasignado exitosamente.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al desasignar el geosegmento: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Agrega un empleado a una zona.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function addEmpleadoToZone(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'idEmpleado' => 'required|integer',
+                'idCiclo' => 'required|integer'
+            ]);
+
+            // Verificar si la zona existe
+            $zona = \App\Models\Zona::find($id);
+            if (!$zona) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zona no encontrada.'
+                ], 404);
+            }
+
+            // Verificar si el ciclo está cerrado
+            $ciclo = \App\Models\Ciclo::find($request->idCiclo);
+            if ($ciclo) {
+                $esCerrado = false;
+                
+                // Verificar por fecha de fin
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                // Fallback: verificar por estado si no hay fecha
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            // Verificar si ya existe la relación
+            $existingRelation = \App\Models\ZonaEmp::where('idZona', $id)
+                ->where('idEmpleado', $request->idEmpleado)
+                ->where('idCiclo', $request->idCiclo)
+                ->first();
+
+            if ($existingRelation) {
+                if ($existingRelation->idEstado == 0) {
+                    // Si existe pero está inactivo, reactivarlo
+                    $existingRelation->idEstado = 1;
+                    $existingRelation->save();
+                    
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Empleado reactivado exitosamente.'
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Este empleado ya está asignado a la zona.'
+                    ], 400);
+                }
+            }
+
+            // Crear nueva relación
+            \App\Models\ZonaEmp::create([
+                'idZona' => $id,
+                'idEmpleado' => $request->idEmpleado,
+                'idCiclo' => $request->idCiclo,
+                'idEstado' => 1
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Empleado agregado exitosamente.'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de entrada inválidos.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al agregar el empleado: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Agrega un geosegmento a una zona.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function addGeosegmentToZone(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'idGeosegmento' => 'required|integer',
+                'idCiclo' => 'required|integer'
+            ]);
+
+            // Verificar si la zona existe
+            $zona = \App\Models\Zona::find($id);
+            if (!$zona) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zona no encontrada.'
+                ], 404);
+            }
+
+            // Verificar si el ciclo está cerrado
+            $ciclo = \App\Models\Ciclo::find($request->idCiclo);
+            if ($ciclo) {
+                $esCerrado = false;
+                
+                // Verificar por fecha de fin
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                // Fallback: verificar por estado si no hay fecha
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            // Verificar si ya existe la relación
+            $existingRelation = \App\Models\ZonaGeo::where('idZona', $id)
+                ->where('idGeosegmento', $request->idGeosegmento)
+                ->where('idCiclo', $request->idCiclo)
+                ->first();
+
+            if ($existingRelation) {
+                if ($existingRelation->idEstado == 0) {
+                    // Si existe pero está inactivo, reactivarlo
+                    $existingRelation->idEstado = 1;
+                    $existingRelation->save();
+                    
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Geosegmento reactivado exitosamente.'
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Este geosegmento ya está asignado a la zona.'
+                    ], 400);
+                }
+            }
+
+            // Crear nueva relación
+            \App\Models\ZonaGeo::create([
+                'idZona' => $id,
+                'idGeosegmento' => $request->idGeosegmento,
+                'idCiclo' => $request->idCiclo,
+                'idEstado' => 1
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Geosegmento agregado exitosamente.'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de entrada inválidos.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al agregar el geosegmento: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Desactiva un empleado de una zona (cambia estado a 0 en ZonaEmp).
+     *
+     * @param int $id El ID de la relación ZonaEmp
+     * @return JsonResponse
+     */
+    public function deactivateEmployeeFromZone(int $id): JsonResponse
+    {
+        try {
+            $zonaEmp = \App\Models\ZonaEmp::with('ciclo.estado')->find($id);
+
+            if (!$zonaEmp) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Relación no encontrada.'
+                ], 404);
+            }
+
+            // Verificar si el ciclo está cerrado (por fecha o por estado)
+            if ($zonaEmp->ciclo) {
+                $ciclo = $zonaEmp->ciclo;
+                $esCerrado = false;
+                
+                // Verificar por fecha de fin
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                // Fallback: verificar por estado si no hay fecha usando la RELACIÓN, no el accesor
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            $zonaEmp->idEstado = 0;
+            $zonaEmp->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Empleado desasignado exitosamente.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al desasignar el empleado: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Reactiva un geosegmento de una zona (cambia estado a 1).
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function activateGeosegmentFromZone(int $id): JsonResponse
+    {
+        try {
+            $zonaGeo = \App\Models\ZonaGeo::with('ciclo.estado')->find($id);
+
+            if (!$zonaGeo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Relación no encontrada.'
+                ], 404);
+            }
+
+            // Verificar si el ciclo está cerrado (por fecha o por estado)
+            if ($zonaGeo->ciclo) {
+                $ciclo = $zonaGeo->ciclo;
+                $esCerrado = false;
+                
+                // Verificar por fecha de fin
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                // Fallback: verificar por estado si no hay fecha usando la RELACIÓN, no el accesor
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            $zonaGeo->idEstado = 1;
+            $zonaGeo->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Geosegmento reactivado exitosamente.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al reactivar el geosegmento: ' . $e->getMessage()
+            ], 400);
+        }
     }
 }
 

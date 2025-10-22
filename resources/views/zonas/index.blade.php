@@ -47,6 +47,23 @@
         </select>
     </div>
 
+    {{-- Mensaje de ciclo cerrado --}}
+    <div class="cycle-closed-warning" id="cycleClosedWarning" style="display: none;">
+        <div class="warning-content">
+            <div class="warning-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div class="warning-text">
+                <h4>Ciclo Cerrado</h4>
+                <p>Este ciclo está cerrado. Solo puedes visualizar las asignaciones, no realizar modificaciones.</p>
+            </div>
+        </div>
+    </div>
+
     {{-- Search Bar --}}
     <div class="toolbar">
         <div class="search-wrapper">
@@ -87,7 +104,7 @@
             </thead>
             <tbody>
                 @forelse($zonas as $zona)
-                <tr>
+                <tr data-zona-id="{{ $zona->idZona }}">
                     <td>
                         <span class="badge badge-id">{{ $zona->idZona }}</span>
                     </td>
@@ -102,7 +119,7 @@
                                 <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
                                 <circle cx="9" cy="7" r="4"/>
                             </svg>
-                            <span>{{ $zona->zonasEmpleados->count() }}</span>
+                            <span id="empleados-count-{{ $zona->idZona }}">{{ $zona->zonasEmpleados->count() }}</span>
                         </div>
                     </td>
                     <td>
@@ -111,7 +128,7 @@
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
                                 <circle cx="12" cy="10" r="3"/>
                             </svg>
-                            <span>{{ $zona->zonasGeosegmentos->count() }}</span>
+                            <span id="geosegmentos-count-{{ $zona->idZona }}">{{ $zona->zonasGeosegmentos->count() }}</span>
                         </div>
                     </td>
                     <td>
@@ -119,7 +136,7 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
                             </svg>
-                            <span>
+                            <span id="ubigeos-count-{{ $zona->idZona }}">
                                 @php
                                     $ubigeoCount = 0;
                                     foreach($zona->zonasGeosegmentos as $zg) {
@@ -275,7 +292,7 @@
     <div class="modal-overlay" onclick="closeConfirmModal()"></div>
     <div class="modal-dialog modal-sm">
         <div class="modal-header">
-            <h2 class="modal-title">Confirmar Desactivación</h2>
+            <h2 class="modal-title" id="confirmTitle">Confirmar Acción</h2>
             <button class="modal-close" onclick="closeConfirmModal()">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -284,22 +301,13 @@
         </div>
 
         <div class="modal-body">
-            <div class="confirm-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 8v4M12 16h.01"/>
-                </svg>
-            </div>
             <p class="confirm-message" id="confirmMessage"></p>
         </div>
 
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancelar</button>
-            <button class="btn btn-danger" onclick="deactivateZone()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                </svg>
-                Desactivar
+            <button class="btn btn-danger" id="confirmButton" onclick="executeConfirmAction()">
+                <span id="confirmButtonText">Confirmar</span>
             </button>
         </div>
     </div>
@@ -307,6 +315,55 @@
 
 {{-- Toast Container --}}
 <div class="toast-container" id="toastContainer"></div>
+
+{{-- Scripts para pasar datos a JavaScript --}}
+<script>
+    window.geosegmentosData = @json($geosegmentos);
+    window.ciclosData = @json($ciclos);
+    window.cicloSeleccionado = @json($cicloSeleccionado);
+    
+    // Función para verificar si el ciclo seleccionado está cerrado
+    window.isCicloCerrado = function() {
+        if (!window.cicloSeleccionado) return false;
+        
+        const ciclo = window.ciclosData.find(c => c.idCiclo == window.cicloSeleccionado);
+        if (!ciclo) return false;
+        
+        // Verificar por fecha de fin
+        if (ciclo.fechaFin) {
+            const fechaFin = new Date(ciclo.fechaFin);
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fechas
+            
+            return fechaFin < hoy;
+        }
+        
+        // Fallback: verificar por estado si no hay fecha
+        return ciclo.estado && ciclo.estado.estado === 'Cerrado';
+    };
+    
+    // Función para obtener el estado del ciclo seleccionado
+    window.getEstadoCicloSeleccionado = function() {
+        if (!window.cicloSeleccionado) return null;
+        
+        const ciclo = window.ciclosData.find(c => c.idCiclo == window.cicloSeleccionado);
+        if (!ciclo) return null;
+        
+        // Verificar por fecha de fin
+        if (ciclo.fechaFin) {
+            const fechaFin = new Date(ciclo.fechaFin);
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            
+            if (fechaFin < hoy) {
+                return { estado: 'Cerrado' };
+            }
+        }
+        
+        // Fallback: usar el estado de la base de datos
+        return ciclo.estado;
+    };
+</script>
 
 @endsection
 

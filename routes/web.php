@@ -44,4 +44,17 @@ Route::prefix('zonas')->name('zonas.')->group(function () {
     Route::get('/{id}/empleados', [ZonaController::class, 'getEmpleados'])->name('empleados');
     Route::get('/{id}/geosegmentos', [ZonaController::class, 'getGeosegmentos'])->name('geosegmentos');
     Route::get('/{id}/ubigeos', [ZonaController::class, 'getUbigeos'])->name('ubigeos');
+    
+    // Desactivar y reactivar geosegmento de una zona
+    Route::put('/geosegmentos/{id}/deactivate', [ZonaController::class, 'deactivateGeosegmentFromZone'])->name('geosegmentos.deactivate');
+    Route::put('/geosegmentos/{id}/activate', [ZonaController::class, 'activateGeosegmentFromZone'])->name('geosegmentos.activate');
+    
+    // Desactivar empleado de una zona
+    Route::put('/empleados/{id}/deactivate', [ZonaController::class, 'deactivateEmployeeFromZone'])->name('empleados.deactivate');
+    
+    // Agregar empleado a una zona
+    Route::post('/{id}/empleados', [ZonaController::class, 'addEmpleadoToZone'])->name('empleados.add');
+    
+    // Agregar geosegmento a una zona
+    Route::post('/{id}/geosegmentos', [ZonaController::class, 'addGeosegmentToZone'])->name('geosegmentos.add');
 });

@@ -31,11 +31,11 @@
 
 /* Logo Section */
 .logo-container {
-    padding: 20px 16px;
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     border-bottom: 1px solid var(--border-primary);
 }
 
@@ -47,31 +47,23 @@
 }
 
 .logo-text h1 {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
     white-space: nowrap;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
 }
 
 .logo {
     width: 100%;
-    max-width: 180px;
+    max-width: 170px;
     height: auto;
     object-fit: contain;
     transition: all 0.3s ease;
 }
 
-/* Adaptación al tema oscuro */
-[data-theme="dark"] .logo {
-    filter: brightness(0) invert(1);
-}
-
-[data-theme="light"] .logo {
-    filter: none;
-}
 
 .sidebar.collapsed .logo-text {
     opacity: 0;
@@ -86,8 +78,8 @@
 /* Toggle Button */
 .sidebar-toggle {
     position: absolute;
-    top: 8px;
-    right: 2px;
+    top: 10px;
+    right: 8px;
     width: 32px;
     height: 32px;
     background: var(--bg-secondary);
@@ -138,44 +130,43 @@
 
 /* Navigation Section */
 .nav-section {
-    padding: 0px 0;
-    overflow-y: auto;
-    overflow-x: hidden;
+    padding: 0;
+    overflow: visible;
+}
+
+.nav-section:first-of-type {
+    padding-top: 12px;
 }
 
 .nav-section h3 {
-    padding: 0px 20px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0 0 12px 0;
-    transition: opacity 0.2s ease;
+    display: none;
 }
 
 .sidebar.collapsed .nav-section h3 {
-    opacity: 0;
-    height: 0;
-    margin: 0;
-    padding: 0;
+    display: none;
 }
 
 .nav-menu {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0 0 4px 0;
+}
+
+.nav-section:not(:first-of-type) .nav-menu {
+    padding-top: 12px;
+    border-top: 1px solid var(--border-primary);
+    margin: 0 12px 4px 12px;
 }
 
 .nav-item {
-    margin: 4px 12px;
+    margin: 3px 12px;
 }
 
 .nav-link {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 16px;
+    padding: 9px 14px;
     color: var(--text-secondary);
     text-decoration: none;
     border-radius: 8px;
@@ -183,6 +174,7 @@
     position: relative;
     white-space: nowrap;
     line-height: 1.5;
+    font-size: 14px;
 }
 
 .nav-link:hover {
@@ -228,12 +220,12 @@
 }
 
 .sidebar.collapsed .nav-item {
-    margin: 4px 8px;
+    margin: 3px 8px;
 }
 
 .sidebar.collapsed .nav-link {
     justify-content: center;
-    padding: 10px 12px;
+    padding: 9px 12px;
     gap: 0;
 }
 
@@ -267,73 +259,6 @@
     transform: translateY(-50%) translateX(0);
 }
 
-/* Theme Toggle */
-.theme-toggle-container {
-    padding: 16px 12px;
-    border-top: 1px solid var(--border-primary);
-}
-
-.theme-toggle {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: 8px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.theme-toggle:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
-    color: var(--text-primary);
-}
-
-.theme-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    stroke-width: 2;
-    color: currentColor;
-}
-
-/* Theme Icon States */
-.sun-icon {
-    display: none;
-}
-
-.moon-icon {
-    display: block;
-}
-
-[data-theme="light"] .sun-icon {
-    display: block;
-}
-
-[data-theme="light"] .moon-icon {
-    display: none;
-}
-
-.theme-toggle span:last-child {
-    font-size: 14px;
-    opacity: 1;
-    transition: opacity 0.2s ease;
-}
-
-.sidebar.collapsed .theme-toggle {
-    justify-content: center;
-    padding: 12px;
-}
-
-.sidebar.collapsed .theme-toggle span:last-child {
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
-}
 
 /* Main Content Adjustment */
 .main-content {
@@ -406,24 +331,6 @@
 
 .mobile-menu-btn.active span:nth-child(3) {
     transform: rotate(-45deg) translateY(-6px);
-}
-
-/* Scrollbar Styling */
-.nav-section::-webkit-scrollbar {
-    width: 6px;
-}
-
-.nav-section::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.nav-section::-webkit-scrollbar-thumb {
-    background: var(--border-primary);
-    border-radius: 3px;
-}
-
-.nav-section::-webkit-scrollbar-thumb:hover {
-    background: var(--border-hover);
 }
 
 /* Responsive Design */

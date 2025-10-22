@@ -51,12 +51,6 @@
                 @endforeach
             </select>
 
-            <select class="filter-select" id="filterUNE" onchange="applyFilters()">
-                <option value="">Todas las UNEs</option>
-                @foreach($unes as $une)
-                    <option value="{{ $une->idUNE }}">{{ $une->unidadNegocio }}</option>
-                @endforeach
-            </select>
 
             <button class="btn btn-secondary btn-icon" onclick="clearFilters()" title="Limpiar filtros">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -76,7 +70,6 @@
                         <th>DNI</th>
                         <th>Cargo</th>
                         <th>Área</th>
-                        <th>UNE</th>
                         <th>Estado</th>
                         <th class="text-right">Acciones</th>
                     </tr>
@@ -95,7 +88,6 @@
                         <td><span class="badge badge-light">{{ $empleado->dni }}</span></td>
                         <td>{{ $empleado->cargo->cargo ?? 'N/A' }}</td>
                         <td>{{ $empleado->area->area ?? 'N/A' }}</td>
-                        <td>{{ $empleado->une->unidadNegocio ?? 'N/A' }}</td>
                         <td>
                             @if($empleado->idEstado == 1)
                                 <span class="status status-active">Activo</span>
@@ -199,15 +191,6 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">UNE <span class="required">*</span></label>
-                        <select class="form-select" id="idUNE" required>
-                            <option value="">Seleccionar UNE</option>
-                            @foreach($unes as $une)
-                                <option value="{{ $une->idUNE }}">{{ $une->unidadNegocio }}</option>
-                            @endforeach
-                        </select>
-                    </div>
 
                     <div class="form-group" id="estadoGroup" style="display: none;">
                         <label class="form-label">Estado <span class="required">*</span></label>

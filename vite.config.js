@@ -8,7 +8,6 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/css/layout.css',
-                'resources/css/theme.css',
                 'resources/css/sidebar.css',
                 'resources/css/empleados.css',
                 'resources/css/zonas.css',
@@ -17,8 +16,7 @@ export default defineConfig({
                 'resources/js/sidebar.js',
                 'resources/js/empleados.js',
                 'resources/js/zonas.js',
-                'resources/js/ciclos.js',
-                'resources/js/theme.js'
+                'resources/js/ciclos.js'
             ],
             refresh: true,
         }),

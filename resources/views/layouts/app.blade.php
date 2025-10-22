@@ -6,30 +6,15 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'PharmaSales - Gestión de Ventas')</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('favicon.png') }}">
+    
     <!-- Vite CSS -->
-    @vite(['resources/css/app.css', 'resources/css/layout.css', 'resources/css/theme.css', 'resources/css/sidebar.css'])
+    @vite(['resources/css/app.css', 'resources/css/layout.css', 'resources/css/sidebar.css'])
     @stack('styles')
-    
-    <!-- Prevenir flash de tema - Ejecutar antes de renderizar -->
-    <script>
-        (function() {
-            const savedTheme = localStorage.getItem('pharmasales-theme');
-            const systemTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-            const theme = savedTheme || systemTheme;
-            
-            if (theme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-            }
-        })();
-    </script>
-    
-    <style>
-        /* Prevenir FOUC */
-        html {
-            visibility: visible;
-            opacity: 1;
-        }
-    </style>
 </head>
 <body>
     <!-- Mobile Menu Button -->
@@ -144,25 +129,6 @@
             </ul>
         </nav>
 
-        <div class="theme-toggle-container">
-            <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar tema" data-tooltip="Cambiar tema">
-                <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="5"/>
-                    <line x1="12" y1="1" x2="12" y2="3"/>
-                    <line x1="12" y1="21" x2="12" y2="23"/>
-                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                    <line x1="1" y1="12" x2="3" y2="12"/>
-                    <line x1="21" y1="12" x2="23" y2="12"/>
-                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                </svg>
-                <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-                </svg>
-                <span>Cambiar tema</span>
-            </button>
-        </div>
     </aside>
 
     <!-- Main Content -->
@@ -173,7 +139,7 @@
     </main>
 
     <!-- Vite JS -->
-    @vite(['resources/js/theme.js', 'resources/js/sidebar.js'])
+    @vite(['resources/js/sidebar.js'])
     @stack('scripts')
 </body>
 </html>

@@ -41,8 +41,11 @@ class EmpleadoController extends Controller
      */
     public function index(Request $request): View
     {
-        // Query base con relaciones
-        $query = \App\Models\Empleado::with(['cargo', 'area', 'une', 'estado']);
+        // Query base con relaciones - Solo empleados de UNE "FARMA"
+        $query = \App\Models\Empleado::with(['cargo', 'area', 'une', 'estado'])
+            ->whereHas('une', function($q) {
+                $q->where('unidadNegocio', 'FARMA');
+            });
         
         // Aplicar filtros si existen
         if ($request->filled('cargo')) {
@@ -51,10 +54,6 @@ class EmpleadoController extends Controller
         
         if ($request->filled('area')) {
             $query->where('idArea', $request->area);
-        }
-        
-        if ($request->filled('une')) {
-            $query->where('idUne', $request->une);
         }
         
         // Búsqueda por texto (nombre, apellido, DNI)
@@ -74,10 +73,9 @@ class EmpleadoController extends Controller
         
         $cargos = $this->cargoService->getAllCargos();
         $areas = $this->areaService->getAllAreas();
-        $unes = $this->uneService->getAllUnes();
         $estados = $this->estadoService->getAllEstados();
 
-        return view('empleados.index', compact('empleados', 'cargos', 'areas', 'unes', 'estados'));
+        return view('empleados.index', compact('empleados', 'cargos', 'areas', 'estados'));
     }
 
     /**
@@ -129,7 +127,6 @@ class EmpleadoController extends Controller
         $validated = $request->validate([
             'idCargo' => 'required|integer',
             'idArea' => 'required|integer',
-            'idUne' => 'required|integer',
             'idEstado' => 'required|integer',
             'dni' => 'required|string|max:8|min:8',
             'nombre' => 'required|string|max:100',
@@ -139,6 +136,17 @@ class EmpleadoController extends Controller
             'fechaIngreso' => 'required|date',
             'fechaCese' => 'nullable|date|after_or_equal:fechaIngreso',
         ]);
+
+        // Buscar el ID de la UNE "FARMA" y asignarlo automáticamente
+        $uneFarma = \App\Models\Une::where('unidadNegocio', 'FARMA')->first();
+        if ($uneFarma) {
+            $validated['idUne'] = $uneFarma->idUNE;
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró la UNE FARMA en el sistema.'
+            ], 400);
+        }
 
         $result = $this->empleadoService->crearEmpleado($validated);
 
@@ -157,7 +165,6 @@ class EmpleadoController extends Controller
         $validated = $request->validate([
             'idCargo' => 'sometimes|required|integer',
             'idArea' => 'sometimes|required|integer',
-            'idUne' => 'sometimes|required|integer',
             'idEstado' => 'sometimes|required|integer',
             'dni' => 'sometimes|required|string|max:8|min:8',
             'nombre' => 'sometimes|required|string|max:100',
@@ -167,6 +174,12 @@ class EmpleadoController extends Controller
             'fechaIngreso' => 'sometimes|required|date',
             'fechaCese' => 'nullable|date',
         ]);
+
+        // No permitir cambiar la UNE - mantener la UNE "FARMA"
+        $uneFarma = \App\Models\Une::where('unidadNegocio', 'FARMA')->first();
+        if ($uneFarma) {
+            $validated['idUne'] = $uneFarma->idUNE;
+        }
 
         $result = $this->empleadoService->actualizarEmpleado($id, $validated);
 

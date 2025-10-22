@@ -115,7 +115,6 @@ async function loadEmployeeData(employeeId) {
         document.getElementById('correo').value = employee.correo || '';
         document.getElementById('idCargo').value = employee.idCargo || '';
         document.getElementById('idArea').value = employee.idArea || '';
-        document.getElementById('idUNE').value = employee.idUne || '';
         document.getElementById('idEstado').value = employee.idEstado || '';
         
     } catch (error) {
@@ -147,7 +146,6 @@ async function saveEmployee(event) {
         correo: document.getElementById('correo').value.trim() || null,
         idCargo: parseInt(document.getElementById('idCargo').value),
         idArea: parseInt(document.getElementById('idArea').value),
-        idUNE: parseInt(document.getElementById('idUNE').value),
         idEstado: parseInt(document.getElementById('idEstado').value),
     };
     
@@ -220,49 +218,106 @@ async function deactivateEmployee() {
 let searchTimeout;
 
 /**
- * Búsqueda de empleados con debounce
+ * Búsqueda de empleados con debounce - Búsqueda global en base de datos
  */
 function searchEmployees() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        applyFilters();
+        performGlobalSearch();
     }, 300);
 }
 
 /**
- * Aplica todos los filtros
+ * Realiza búsqueda global en la base de datos
  */
-function applyFilters() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
+async function performGlobalSearch() {
+    const search = document.getElementById('searchInput').value.trim();
     const filterCargo = document.getElementById('filterCargo').value;
     const filterArea = document.getElementById('filterArea').value;
-    const filterUNE = document.getElementById('filterUNE').value;
     
-    const rows = document.querySelectorAll('#employeesTable tr');
+    // Construir parámetros de búsqueda
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (filterCargo) params.append('cargo', filterCargo);
+    if (filterArea) params.append('area', filterArea);
     
-    rows.forEach(row => {
-        const nombre = row.querySelector('.employee-name')?.textContent.toLowerCase() || '';
-        const apellido = row.querySelector('.employee-subtitle')?.textContent.toLowerCase() || '';
-        const dni = row.querySelector('.badge-light')?.textContent.toLowerCase() || '';
-        const cargo = row.children[2]?.textContent || '';
-        const area = row.children[3]?.textContent || '';
-        const une = row.children[4]?.textContent || '';
+    try {
+        // Mostrar indicador de carga
+        showLoadingIndicator();
         
-        const matchSearch = nombre.includes(search) || 
-                          apellido.includes(search) || 
-                          dni.includes(search) ||
-                          cargo.toLowerCase().includes(search);
+        // Hacer petición al servidor
+        const response = await fetch(`/empleados?${params.toString()}`);
         
-        const matchCargo = !filterCargo || cargo === document.querySelector(`#filterCargo option[value="${filterCargo}"]`)?.textContent;
-        const matchArea = !filterArea || area === document.querySelector(`#filterArea option[value="${filterArea}"]`)?.textContent;
-        const matchUNE = !filterUNE || une === document.querySelector(`#filterUNE option[value="${filterUNE}"]`)?.textContent;
-        
-        if (matchSearch && matchCargo && matchArea && matchUNE) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
+        if (!response.ok) {
+            throw new Error('Error en la búsqueda');
         }
-    });
+        
+        // Obtener el HTML de respuesta
+        const html = await response.text();
+        
+        // Crear un elemento temporal para parsear el HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        // Extraer la tabla de empleados
+        const newTableBody = tempDiv.querySelector('#employeesTable');
+        const newPagination = tempDiv.querySelector('.pagination-wrapper');
+        
+        // Actualizar la tabla
+        const currentTableBody = document.getElementById('employeesTable');
+        if (newTableBody && currentTableBody) {
+            currentTableBody.innerHTML = newTableBody.innerHTML;
+        }
+        
+        // Actualizar la paginación
+        const currentPagination = document.querySelector('.pagination-wrapper');
+        if (newPagination && currentPagination) {
+            currentPagination.innerHTML = newPagination.innerHTML;
+        } else if (!newPagination && currentPagination) {
+            currentPagination.style.display = 'none';
+        }
+        
+        hideLoadingIndicator();
+        
+    } catch (error) {
+        console.error('Error en búsqueda:', error);
+        hideLoadingIndicator();
+        showToast('Error al realizar la búsqueda', 'error');
+    }
+}
+
+/**
+ * Muestra indicador de carga
+ */
+function showLoadingIndicator() {
+    const tableBody = document.getElementById('employeesTable');
+    if (tableBody) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center" style="padding: 2rem;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <div class="spinner"></div>
+                        <span>Buscando empleados...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+/**
+ * Oculta indicador de carga
+ */
+function hideLoadingIndicator() {
+    // El indicador se oculta cuando se actualiza la tabla
+}
+
+/**
+ * Aplica todos los filtros - Búsqueda global en base de datos
+ */
+function applyFilters() {
+    // Usar búsqueda global en lugar de filtros locales
+    performGlobalSearch();
 }
 
 /**
@@ -272,8 +327,9 @@ function clearFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('filterCargo').value = '';
     document.getElementById('filterArea').value = '';
-    document.getElementById('filterUNE').value = '';
-    applyFilters();
+    
+    // Recargar la página para mostrar todos los empleados
+    window.location.href = '/empleados';
 }
 
 /* ====================
@@ -331,6 +387,7 @@ window.editEmployee = editEmployee;
 window.saveEmployee = saveEmployee;
 window.deactivateEmployee = deactivateEmployee;
 window.searchEmployees = searchEmployees;
+window.performGlobalSearch = performGlobalSearch;
 window.applyFilters = applyFilters;
 window.clearFilters = clearFilters;
 window.showToast = showToast;

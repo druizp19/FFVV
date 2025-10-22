@@ -809,7 +809,24 @@
 }
 
 /* ====================
-   14. RESPONSIVE DESIGN
+   14. LOADING INDICATOR
+   ==================== */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-primary);
+    border-top: 2px solid var(--primary-500);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ====================
+   15. RESPONSIVE DESIGN
    ==================== */
 
 /* Tablets (max-width: 1024px) */
