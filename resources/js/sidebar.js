@@ -93,6 +93,11 @@ function toggleSidebar() {
  * Toggle del sidebar en mobile
  */
 function toggleMobileSidebar() {
+    // No permitir toggle si el sidebar está bloqueado
+    if (isSidebarBlocked()) {
+        return;
+    }
+    
     const sidebar = document.querySelector('.sidebar');
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     const overlay = document.querySelector('.sidebar-overlay');
@@ -170,10 +175,57 @@ function addTooltipsToNavLinks() {
 }
 
 /**
+ * Bloquea el sidebar cuando hay modales abiertos
+ */
+function blockSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+    
+    if (sidebar) {
+        sidebar.classList.add('blocked');
+    }
+    
+    if (mobileMenuBtn) {
+        mobileMenuBtn.classList.add('blocked');
+        mobileMenuBtn.style.pointerEvents = 'none';
+        mobileMenuBtn.style.opacity = '0.5';
+    }
+}
+
+/**
+ * Desbloquea el sidebar cuando se cierran los modales
+ */
+function unblockSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+    
+    if (sidebar) {
+        sidebar.classList.remove('blocked');
+    }
+    
+    if (mobileMenuBtn) {
+        mobileMenuBtn.classList.remove('blocked');
+        mobileMenuBtn.style.pointerEvents = '';
+        mobileMenuBtn.style.opacity = '';
+    }
+}
+
+/**
+ * Verifica si el sidebar está bloqueado
+ */
+function isSidebarBlocked() {
+    const sidebar = document.querySelector('.sidebar');
+    return sidebar && sidebar.classList.contains('blocked');
+}
+
+/**
  * Función global para exponer en window
  */
 window.toggleSidebar = toggleSidebar;
 window.toggleMobileSidebar = toggleMobileSidebar;
+window.blockSidebar = blockSidebar;
+window.unblockSidebar = unblockSidebar;
+window.isSidebarBlocked = isSidebarBlocked;
 
 /**
  * Inicializar cuando el DOM esté listo

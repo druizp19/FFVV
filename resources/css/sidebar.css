@@ -308,6 +308,17 @@
     transition: all 0.2s;
 }
 
+/* Estado bloqueado del sidebar */
+.sidebar.blocked {
+    pointer-events: none;
+}
+
+.mobile-menu-btn.blocked {
+    pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .mobile-menu-btn:hover {
     background: var(--bg-hover);
     border-color: var(--accent-primary);

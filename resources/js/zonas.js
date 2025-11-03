@@ -53,6 +53,11 @@ function openModal(mode, zoneId = null) {
     }
     
     modal.classList.add('active');
+    
+    // Bloquear sidebar en modo responsive
+    if (window.innerWidth <= 768 && window.blockSidebar) {
+        window.blockSidebar();
+    }
 }
 
 /**
@@ -62,6 +67,11 @@ function closeModal() {
     const modal = document.getElementById('zoneModal');
     modal.classList.remove('active');
     currentZoneId = null;
+    
+    // Desbloquear sidebar
+    if (window.unblockSidebar) {
+        window.unblockSidebar();
+    }
 }
 
 /**
@@ -71,6 +81,11 @@ function closeDetailsModal() {
     const modal = document.getElementById('detailsModal');
     modal.classList.remove('active');
     currentZoneId = null; // Resetear aquí cuando se cierre el modal de detalles
+    
+    // Desbloquear sidebar
+    if (window.unblockSidebar) {
+        window.unblockSidebar();
+    }
 }
 
 /**
@@ -80,6 +95,11 @@ function closeConfirmModal() {
     const modal = document.getElementById('confirmModal');
     modal.classList.remove('active');
     // No resetear currentZoneId aquí porque se necesita para las actualizaciones en tiempo real
+    
+    // Desbloquear sidebar
+    if (window.unblockSidebar) {
+        window.unblockSidebar();
+    }
 }
 
 // ==========================================
@@ -190,6 +210,11 @@ function showConfirmModal(title, message, buttonText, action) {
     pendingAction = action;
     
     modal.classList.add('active');
+    
+    // Bloquear sidebar en modo responsive
+    if (window.innerWidth <= 768 && window.blockSidebar) {
+        window.blockSidebar();
+    }
 }
 
 /**
@@ -262,6 +287,12 @@ async function viewZoneDetails(zoneId) {
     
     // Mostrar modal con spinner
     modal.classList.add('active');
+    
+    // Bloquear sidebar en modo responsive
+    if (window.innerWidth <= 768 && window.blockSidebar) {
+        window.blockSidebar();
+    }
+    
     detailsContent.innerHTML = `
         <div class="loading-spinner">
             <div class="spinner"></div>
@@ -293,8 +324,10 @@ async function viewZoneDetails(zoneId) {
         const geosegmentosUrl = `/zonas/${zoneId}/geosegmentos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
         const geosegmentosResponse = await fetch(geosegmentosUrl);
         const geosegmentosResult = await geosegmentosResponse.json();
-        const geosegmentos = geosegmentosResult.data || [];
-        
+        const geosegmentos = geosegmentosResult?.data?.activos || [];
+            
+        console.log('geosegmentosResult:', geosegmentosResult);
+
         // Cargar ubigeos
         const ubigeosUrl = `/zonas/${zoneId}/ubigeos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
         const ubigeosResponse = await fetch(ubigeosUrl);

@@ -150,6 +150,24 @@ class ZonaController extends Controller
 
         $result = $this->zonaService->crearZona($validated);
 
+        // Registrar en el historial si fue exitoso
+        if ($result['success'] && isset($result['data'])) {
+            $zona = $result['data'];
+            \App\Models\Historial::create([
+                'idCiclo' => null, // Las zonas no tienen ciclo directo
+                'entidad' => 'Zona',
+                'idEntidad' => $zona->idZona,
+                'accion' => 'Crear',
+                'descripcion' => sprintf('Se creó la zona "%s"', $zona->zona),
+                'datosNuevos' => [
+                    'zona' => $zona->zona,
+                    'idEstado' => $zona->idEstado
+                ],
+                'idUsuario' => auth()->id(),
+                'fechaHora' => now(),
+            ]);
+        }
+
         return response()->json($result, $result['success'] ? 201 : 400);
     }
 
@@ -162,12 +180,38 @@ class ZonaController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        // Obtener datos anteriores
+        $zonaAnterior = \App\Models\Zona::find($id);
+        $datosAnteriores = $zonaAnterior ? [
+            'zona' => $zonaAnterior->zona,
+            'idEstado' => $zonaAnterior->idEstado
+        ] : null;
+
         $validated = $request->validate([
             'zona' => 'sometimes|required|string|max:100|unique:ODS.TAB_ZONA,zona,' . $id . ',idZona',
             'idEstado' => 'sometimes|required|integer',
         ]);
 
         $result = $this->zonaService->actualizarZona($id, $validated);
+
+        // Registrar en el historial si fue exitoso
+        if ($result['success'] && isset($result['data'])) {
+            $zona = $result['data'];
+            \App\Models\Historial::create([
+                'idCiclo' => null,
+                'entidad' => 'Zona',
+                'idEntidad' => $zona->idZona,
+                'accion' => 'Actualizar',
+                'descripcion' => sprintf('Se actualizó la zona "%s"', $zona->zona),
+                'datosAnteriores' => $datosAnteriores,
+                'datosNuevos' => [
+                    'zona' => $zona->zona,
+                    'idEstado' => $zona->idEstado
+                ],
+                'idUsuario' => auth()->id(),
+                'fechaHora' => now(),
+            ]);
+        }
 
         return response()->json($result, $result['success'] ? 200 : 400);
     }
@@ -180,6 +224,9 @@ class ZonaController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
+        // Obtener datos de la zona antes de desactivar
+        $zona = \App\Models\Zona::find($id);
+        
         // Actualizar la zona con estado inactivo (idEstado = 0)
         $result = $this->zonaService->actualizarZona($id, [
             'idEstado' => 0
@@ -187,6 +234,21 @@ class ZonaController extends Controller
 
         if ($result['success']) {
             $result['message'] = 'Zona desactivada exitosamente.';
+            
+            // Registrar en el historial
+            if ($zona) {
+                \App\Models\Historial::create([
+                    'idCiclo' => null,
+                    'entidad' => 'Zona',
+                    'idEntidad' => $zona->idZona,
+                    'accion' => 'Desactivar',
+                    'descripcion' => sprintf('Se desactivó la zona "%s"', $zona->zona),
+                    'datosAnteriores' => ['idEstado' => $zona->idEstado],
+                    'datosNuevos' => ['idEstado' => 0],
+                    'idUsuario' => auth()->id(),
+                    'fechaHora' => now(),
+                ]);
+            }
         }
 
         return response()->json($result, $result['success'] ? 200 : 400);
@@ -322,7 +384,7 @@ class ZonaController extends Controller
     public function deactivateGeosegmentFromZone(int $id): JsonResponse
     {
         try {
-            $zonaGeo = \App\Models\ZonaGeo::with('ciclo.estado')->find($id);
+            $zonaGeo = \App\Models\ZonaGeo::with(['ciclo.estado', 'zona', 'geosegmento'])->find($id);
 
             if (!$zonaGeo) {
                 return response()->json([
@@ -361,6 +423,23 @@ class ZonaController extends Controller
 
             $zonaGeo->idEstado = 0;
             $zonaGeo->save();
+
+            // Registrar en el historial
+            \App\Models\Historial::create([
+                'idCiclo' => $zonaGeo->idCiclo,
+                'entidad' => 'ZonaGeosegmento',
+                'idEntidad' => $zonaGeo->idZonaGeo,
+                'accion' => 'Desasignar',
+                'descripcion' => sprintf(
+                    'Se desasignó el geosegmento "%s" de la zona "%s"',
+                    $zonaGeo->geosegmento->geosegmento ?? 'N/A',
+                    $zonaGeo->zona->zona ?? 'N/A'
+                ),
+                'datosAnteriores' => ['idEstado' => 1],
+                'datosNuevos' => ['idEstado' => 0],
+                'idUsuario' => auth()->id(),
+                'fechaHora' => now(),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -451,11 +530,35 @@ class ZonaController extends Controller
             }
 
             // Crear nueva relación
-            \App\Models\ZonaEmp::create([
+            $zonaEmp = \App\Models\ZonaEmp::create([
                 'idZona' => $id,
                 'idEmpleado' => $request->idEmpleado,
                 'idCiclo' => $request->idCiclo,
                 'idEstado' => 1
+            ]);
+
+            // Cargar relaciones para el historial
+            $zonaEmp->load(['zona', 'empleado']);
+
+            // Registrar en el historial
+            \App\Models\Historial::create([
+                'idCiclo' => $request->idCiclo,
+                'entidad' => 'ZonaEmpleado',
+                'idEntidad' => $zonaEmp->idZonaEmp,
+                'accion' => 'Asignar',
+                'descripcion' => sprintf(
+                    'Se asignó el empleado "%s" a la zona "%s"',
+                    $zonaEmp->empleado->nombre ?? 'N/A',
+                    $zonaEmp->zona->zona ?? 'N/A'
+                ),
+                'datosNuevos' => [
+                    'idZona' => $id,
+                    'idEmpleado' => $request->idEmpleado,
+                    'idCiclo' => $request->idCiclo,
+                    'idEstado' => 1
+                ],
+                'idUsuario' => auth()->id(),
+                'fechaHora' => now(),
             ]);
 
             return response()->json([
@@ -554,11 +657,35 @@ class ZonaController extends Controller
             }
 
             // Crear nueva relación
-            \App\Models\ZonaGeo::create([
+            $zonaGeo = \App\Models\ZonaGeo::create([
                 'idZona' => $id,
                 'idGeosegmento' => $request->idGeosegmento,
                 'idCiclo' => $request->idCiclo,
                 'idEstado' => 1
+            ]);
+
+            // Cargar relaciones para el historial
+            $zonaGeo->load(['zona', 'geosegmento']);
+
+            // Registrar en el historial
+            \App\Models\Historial::create([
+                'idCiclo' => $request->idCiclo,
+                'entidad' => 'ZonaGeosegmento',
+                'idEntidad' => $zonaGeo->idZonaGeo,
+                'accion' => 'Asignar',
+                'descripcion' => sprintf(
+                    'Se asignó el geosegmento "%s" a la zona "%s"',
+                    $zonaGeo->geosegmento->geosegmento ?? 'N/A',
+                    $zonaGeo->zona->zona ?? 'N/A'
+                ),
+                'datosNuevos' => [
+                    'idZona' => $id,
+                    'idGeosegmento' => $request->idGeosegmento,
+                    'idCiclo' => $request->idCiclo,
+                    'idEstado' => 1
+                ],
+                'idUsuario' => auth()->id(),
+                'fechaHora' => now(),
             ]);
 
             return response()->json([
@@ -589,7 +716,7 @@ class ZonaController extends Controller
     public function deactivateEmployeeFromZone(int $id): JsonResponse
     {
         try {
-            $zonaEmp = \App\Models\ZonaEmp::with('ciclo.estado')->find($id);
+            $zonaEmp = \App\Models\ZonaEmp::with(['ciclo.estado', 'zona', 'empleado'])->find($id);
 
             if (!$zonaEmp) {
                 return response()->json([
@@ -629,6 +756,23 @@ class ZonaController extends Controller
             $zonaEmp->idEstado = 0;
             $zonaEmp->save();
 
+            // Registrar en el historial
+            \App\Models\Historial::create([
+                'idCiclo' => $zonaEmp->idCiclo,
+                'entidad' => 'ZonaEmpleado',
+                'idEntidad' => $zonaEmp->idZonaEmp,
+                'accion' => 'Desasignar',
+                'descripcion' => sprintf(
+                    'Se desasignó el empleado "%s" de la zona "%s"',
+                    $zonaEmp->empleado->nombre ?? 'N/A',
+                    $zonaEmp->zona->zona ?? 'N/A'
+                ),
+                'datosAnteriores' => ['idEstado' => 1],
+                'datosNuevos' => ['idEstado' => 0],
+                'idUsuario' => auth()->id(),
+                'fechaHora' => now(),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Empleado desasignado exitosamente.'
@@ -650,7 +794,7 @@ class ZonaController extends Controller
     public function activateGeosegmentFromZone(int $id): JsonResponse
     {
         try {
-            $zonaGeo = \App\Models\ZonaGeo::with('ciclo.estado')->find($id);
+            $zonaGeo = \App\Models\ZonaGeo::with(['ciclo.estado', 'zona', 'geosegmento'])->find($id);
 
             if (!$zonaGeo) {
                 return response()->json([
@@ -689,6 +833,23 @@ class ZonaController extends Controller
 
             $zonaGeo->idEstado = 1;
             $zonaGeo->save();
+
+            // Registrar en el historial
+            \App\Models\Historial::create([
+                'idCiclo' => $zonaGeo->idCiclo,
+                'entidad' => 'ZonaGeosegmento',
+                'idEntidad' => $zonaGeo->idZonaGeo,
+                'accion' => 'Asignar',
+                'descripcion' => sprintf(
+                    'Se asignó el geosegmento "%s" a la zona "%s"',
+                    $zonaGeo->geosegmento->geosegmento ?? 'N/A',
+                    $zonaGeo->zona->zona ?? 'N/A'
+                ),
+                'datosAnteriores' => ['idEstado' => 0],
+                'datosNuevos' => ['idEstado' => 1],
+                'idUsuario' => auth()->id(),
+                'fechaHora' => now(),
+            ]);
 
             return response()->json([
                 'success' => true,

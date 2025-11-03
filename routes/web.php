@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CicloController;
 use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\ZonaController;
+use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\HistorialController;
 
 Route::get('/', function () {
     return redirect()->route('ciclos.index');
@@ -57,4 +59,23 @@ Route::prefix('zonas')->name('zonas.')->group(function () {
     
     // Agregar geosegmento a una zona
     Route::post('/{id}/geosegmentos', [ZonaController::class, 'addGeosegmentToZone'])->name('geosegmentos.add');
+});
+
+// Rutas de Productos
+Route::prefix('productos')->name('productos.')->group(function () {
+    Route::get('/', [ProductoController::class, 'index'])->name('index');
+    Route::get('/all', [ProductoController::class, 'getAll'])->name('all');
+    Route::get('/{id}', [ProductoController::class, 'show'])->name('show');
+    Route::post('/', [ProductoController::class, 'store'])->name('store');
+    Route::put('/{id}', [ProductoController::class, 'update'])->name('update');
+    Route::delete('/{id}', [ProductoController::class, 'destroy'])->name('destroy');
+});
+
+// Rutas de Historial
+Route::prefix('historial')->name('historial.')->group(function () {
+    Route::get('/', [HistorialController::class, 'index'])->name('index');
+    Route::get('/ciclo/{idCiclo}', [HistorialController::class, 'porCiclo'])->name('porCiclo');
+    Route::get('/entidad/{entidad}/{idEntidad}', [HistorialController::class, 'porEntidad'])->name('porEntidad');
+    Route::get('/estadisticas/{idCiclo}', [HistorialController::class, 'estadisticas'])->name('estadisticas');
+    Route::post('/registrar', [HistorialController::class, 'registrar'])->name('registrar');
 });
