@@ -105,10 +105,344 @@ body {
 
     body {
         font-size: 12px;
-        transform: scale(0.95);
-        /* Escalar ligeramente todo el contenido */
-        transform-origin: top left;
-        width: 105.26%;
-        /* Compensar el scale */
+    }
+}
+
+/* ====
+========================================
+   Componentes Globales - Responsive
+   ============================================ */
+
+/* Botones Base */
+.btn,
+.btn-primary,
+.btn-secondary {
+    font-size: 14px;
+    padding: 12px 24px;
+}
+
+/* Tablas Base */
+table th,
+table td {
+    font-size: 14px;
+    padding: 12px 16px;
+}
+
+/* Modales Base */
+.modal-content {
+    max-width: 90%;
+}
+
+.modal-header h2 {
+    font-size: 24px;
+}
+
+/* ============================================
+   Ajustes para Pantallas de 10 Pulgadas
+   ============================================ */
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+
+    /* Botones más compactos */
+    .btn,
+    .btn-primary,
+    .btn-secondary {
+        font-size: 12px;
+        padding: 10px 20px;
+        gap: 6px;
+    }
+
+
+
+    /* Tablas más compactas */
+    table th {
+        font-size: 11px;
+        padding: 10px 12px;
+    }
+
+    table td {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
+    /* Badges y etiquetas */
+    .status-badge,
+    .cycle-badge,
+    .attribute-badge {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    /* Modales */
+    .modal-content {
+        max-width: 85%;
+        padding: 24px;
+    }
+
+    .modal-header h2 {
+        font-size: 20px;
+    }
+
+    .modal-body {
+        padding: 20px 24px;
+    }
+
+    .modal-footer {
+        padding: 16px 24px;
+    }
+
+    /* Formularios en modales */
+    .form-label {
+        font-size: 12px;
+    }
+
+    .form-input,
+    .form-select,
+    .filter-select,
+    .filter-input {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
+    /* Cards y contenedores */
+    .filter-card,
+    .card {
+        padding: 12px;
+    }
+
+    .filter-header {
+        font-size: 11px;
+        margin-bottom: 8px;
+    }
+
+    /* Iconos generales - Removido selector global que causaba problemas */
+
+    /* Espaciados reducidos */
+    .page-header {
+        margin-bottom: 20px;
+    }
+
+    .filters-section {
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    /* Paginación */
+    .pagination a,
+    .pagination span {
+        min-width: 30px;
+        height: 30px;
+        font-size: 12px;
+        padding: 0 6px;
+    }
+
+    .pagination-info {
+        font-size: 12px;
+    }
+}
+
+/* Ajuste específico para pantallas de 10" con altura limitada */
+@media (min-width: 1024px) and (max-width: 1280px) and (max-height: 800px) {
+
+    /* Reducir aún más los espaciados verticales */
+    .page-header {
+        margin-bottom: 16px;
+    }
+
+    .page-title {
+        font-size: 20px;
+        margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+        font-size: 12px;
+    }
+
+    .filters-section {
+        margin-bottom: 16px;
+    }
+
+    /* Tablas más compactas verticalmente */
+    table th,
+    table td {
+        padding: 8px 12px;
+    }
+
+    /* Modales más compactas */
+    .modal-content {
+        padding: 20px;
+    }
+
+    .modal-header {
+        padding: 16px 20px;
+    }
+
+    .modal-body {
+        padding: 16px 20px;
+    }
+
+    .modal-footer {
+        padding: 12px 20px;
+    }
+
+    /* Botones más pequeños */
+    .btn {
+        padding: 8px 16px;
+    }
+
+    /* Cards más compactos */
+    .ciclo-card,
+    .zone-card,
+    .card {
+        padding: 12px;
+    }
+
+    .ciclo-content {
+        padding: 12px;
+    }
+
+    .ciclo-status {
+        padding: 10px 12px;
+    }
+}
+
+
+/* ============================================
+   Tablas - Responsive Global
+   ============================================ */
+
+/* Ajustes para pantallas de 10 pulgadas */
+@media (min-width: 1024px) and (max-width: 1280px) {
+
+    /* Contenedores de tablas */
+    .table-wrapper,
+    .products-table-container,
+    .zones-table-container,
+    .employees-table-container {
+        font-size: 12px;
+    }
+
+    /* Headers de tabla */
+    table thead th {
+        font-size: 11px;
+        padding: 10px 12px;
+        letter-spacing: 0.3px;
+    }
+
+    /* Celdas de tabla */
+    table tbody td {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
+    /* Badges en tablas */
+    .status-badge,
+    .cycle-badge,
+    .attribute-badge,
+    .count-badge {
+        font-size: 10px;
+        padding: 4px 8px;
+        gap: 4px;
+    }
+
+    .status-dot {
+        width: 5px;
+        height: 5px;
+    }
+
+    /* Info de productos */
+    .product-info .info-main,
+    .employee-name {
+        font-size: 12px;
+    }
+
+    .product-info .info-sub,
+    .employee-lastname {
+        font-size: 11px;
+    }
+
+    /* Iconos en tablas */
+    .product-icon,
+    .employee-icon,
+    .zone-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+
+
+    /* Botones de acción en tablas */
+    .action-buttons {
+        gap: 6px;
+    }
+
+
+
+
+
+    /* Fechas */
+    .date-item {
+        font-size: 11px;
+        gap: 4px;
+    }
+
+
+
+    /* Empty state */
+    .empty-state {
+        padding: 50px 20px;
+    }
+
+
+
+    .empty-state p {
+        font-size: 12px;
+    }
+
+    /* Paginación */
+    .pagination-wrapper {
+        padding: 16px;
+    }
+
+    .pagination-info {
+        font-size: 12px;
+    }
+
+    .pagination a,
+    .pagination span {
+        min-width: 30px;
+        height: 30px;
+        font-size: 12px;
+        padding: 0 6px;
+    }
+}
+
+/* Ajuste para pantallas de 10" con altura limitada */
+@media (min-width: 1024px) and (max-width: 1280px) and (max-height: 800px) {
+    table thead th {
+        padding: 8px 10px;
+        font-size: 10px;
+    }
+
+    table tbody td {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+
+    .product-icon,
+    .employee-icon,
+    .zone-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+
+
+
+
+    .status-badge,
+    .cycle-badge {
+        font-size: 9px;
+        padding: 3px 6px;
     }
 }
