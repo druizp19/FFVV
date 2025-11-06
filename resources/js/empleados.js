@@ -1,399 +1,138 @@
-/* ============================================
-   EMPLEADOS MODULE - JavaScript
-   ============================================ */
-
-// Estado global
-let employeeToDeactivate = null;
-
-/* ====================
-   MODAL MANAGEMENT
-   ==================== */
-
 /**
- * Abre el modal para crear o editar empleado
+ * ============================================
+ * Empleados Module - JavaScript
+ * ============================================
  */
-function openModal(mode, employeeId = null) {
-    const modal = document.getElementById('employeeModal');
-    const title = document.getElementById('modalTitle');
-    const form = document.getElementById('employeeForm');
-    const estadoGroup = document.getElementById('estadoGroup');
-    const idEstadoSelect = document.getElementById('idEstado');
-    
-    form.reset();
-    document.getElementById('employeeId').value = '';
-    
-    if (mode === 'create') {
-        title.textContent = 'Nuevo Empleado';
-        // Ocultar selector de estado y establecer "Activo" por defecto
-        estadoGroup.style.display = 'none';
-        idEstadoSelect.removeAttribute('required');
-        // Encontrar y seleccionar "Activo" (estado 1)
-        const activeOption = Array.from(idEstadoSelect.options).find(opt => opt.value == '1');
-        if (activeOption) {
-            idEstadoSelect.value = activeOption.value;
-        }
-    } else if (mode === 'edit' && employeeId) {
-        title.textContent = 'Editar Empleado';
-        // Mostrar selector de estado en modo edición
-        estadoGroup.style.display = 'block';
-        idEstadoSelect.setAttribute('required', 'required');
-        loadEmployeeData(employeeId);
-    }
-    
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-}
 
-/**
- * Cierra el modal de empleado
- */
-function closeModal() {
-    const modal = document.getElementById('employeeModal');
-    modal.classList.remove('active');
-    document.body.style.overflow = '';
-}
+let searchTimeout = null;
 
-/**
- * Abre el modal de confirmación
- */
-function confirmDeactivate(employeeId, employeeName) {
-    employeeToDeactivate = employeeId;
-    const modal = document.getElementById('confirmModal');
-    const message = document.getElementById('confirmMessage');
-    
-    message.textContent = `¿Estás seguro de que deseas desactivar a ${employeeName}?`;
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-}
+// ==========================================
+// SEARCH & FILTERS
+// ==========================================
 
-/**
- * Cierra el modal de confirmación
- */
-function closeConfirmModal() {
-    const modal = document.getElementById('confirmModal');
-    modal.classList.remove('active');
-    document.body.style.overflow = '';
-    employeeToDeactivate = null;
-}
+window.searchEmployees = function() {
+    clearTimeout(searchTimeout);
 
-// Cerrar modales con tecla ESC
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        closeModal();
-        closeConfirmModal();
-    }
-});
+    searchTimeout = setTimeout(() => {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#employeesTableBody tr');
 
-/* ====================
-   CRUD OPERATIONS
-   ==================== */
-
-/**
- * Carga los datos de un empleado para editar
- */
-async function loadEmployeeData(employeeId) {
-    try {
-        const response = await fetch(`/empleados/${employeeId}`);
-        
-        if (!response.ok) {
-            throw new Error('Error al cargar los datos del empleado');
-        }
-        
-        const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.message || 'Error al cargar el empleado');
-        }
-        
-        const employee = result.data;
-        
-        // Llenar el formulario
-        document.getElementById('employeeId').value = employee.idEmpleado || '';
-        document.getElementById('dni').value = employee.dni || '';
-        document.getElementById('nombre').value = employee.nombre || '';
-        document.getElementById('apeNombre').value = employee.apeNombre || '';
-        document.getElementById('correo').value = employee.correo || '';
-        document.getElementById('idCargo').value = employee.idCargo || '';
-        document.getElementById('idArea').value = employee.idArea || '';
-        document.getElementById('idEstado').value = employee.idEstado || '';
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showToast(error.message || 'Error al cargar el empleado', 'error');
-    }
-}
-
-/**
- * Edita un empleado
- */
-function editEmployee(employeeId) {
-    openModal('edit', employeeId);
-}
-
-/**
- * Guarda un empleado (crear o editar)
- */
-async function saveEmployee(event) {
-    event.preventDefault();
-    
-    const employeeId = document.getElementById('employeeId').value;
-    const isEditing = employeeId !== '';
-    
-    const data = {
-        dni: document.getElementById('dni').value.trim(),
-        nombre: document.getElementById('nombre').value.trim(),
-        apeNombre: document.getElementById('apeNombre').value.trim(),
-        correo: document.getElementById('correo').value.trim() || null,
-        idCargo: parseInt(document.getElementById('idCargo').value),
-        idArea: parseInt(document.getElementById('idArea').value),
-        idEstado: parseInt(document.getElementById('idEstado').value),
-    };
-    
-    try {
-        const url = isEditing ? `/empleados/${employeeId}` : '/empleados';
-        const method = isEditing ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast(
-                isEditing ? 'Empleado actualizado exitosamente' : 'Empleado creado exitosamente',
-                'success'
-            );
-            closeModal();
-            setTimeout(() => window.location.reload(), 1500);
-        } else {
-            showToast(result.message || 'Error al guardar el empleado', 'error');
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Error al procesar la solicitud', 'error');
-    }
-}
-
-/**
- * Desactiva un empleado
- */
-async function deactivateEmployee() {
-    if (!employeeToDeactivate) return;
-    
-    try {
-        const response = await fetch(`/empleados/${employeeToDeactivate}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        rows.forEach(row => {
+            const employeeName = row.getAttribute('data-employee-name');
+            const employeeDni = row.getAttribute('data-employee-dni');
+            
+            if (employeeName && employeeDni) {
+                const matches = employeeName.toLowerCase().includes(searchTerm) || 
+                               employeeDni.toLowerCase().includes(searchTerm);
+                row.style.display = matches ? '' : 'none';
             }
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast('Empleado desactivado exitosamente', 'success');
-            closeConfirmModal();
-            setTimeout(() => window.location.reload(), 1500);
-        } else {
-            showToast(result.message || 'Error al desactivar el empleado', 'error');
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Error al procesar la solicitud', 'error');
-    }
-}
-
-/* ====================
-   SEARCH & FILTERS
-   ==================== */
-
-let searchTimeout;
-
-/**
- * Búsqueda de empleados con debounce - Búsqueda global en base de datos
- */
-function searchEmployees() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        performGlobalSearch();
     }, 300);
 }
 
-/**
- * Realiza búsqueda global en la base de datos
- */
-async function performGlobalSearch() {
-    const search = document.getElementById('searchInput').value.trim();
-    const filterCargo = document.getElementById('filterCargo').value;
-    const filterArea = document.getElementById('filterArea').value;
-    
-    // Construir parámetros de búsqueda
+window.applyFilters = function() {
+    const cargo = document.getElementById('filterCargo').value;
+    const area = document.getElementById('filterArea').value;
+    const search = document.getElementById('searchInput').value;
+
+    // Construir URL con parámetros
     const params = new URLSearchParams();
+    if (cargo) params.append('cargo', cargo);
+    if (area) params.append('area', area);
     if (search) params.append('search', search);
-    if (filterCargo) params.append('cargo', filterCargo);
-    if (filterArea) params.append('area', filterArea);
-    
-    try {
-        // Mostrar indicador de carga
-        showLoadingIndicator();
-        
-        // Hacer petición al servidor
-        const response = await fetch(`/empleados?${params.toString()}`);
-        
-        if (!response.ok) {
-            throw new Error('Error en la búsqueda');
-        }
-        
-        // Obtener el HTML de respuesta
-        const html = await response.text();
-        
-        // Crear un elemento temporal para parsear el HTML
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-        
-        // Extraer la tabla de empleados
-        const newTableBody = tempDiv.querySelector('#employeesTable');
-        const newPagination = tempDiv.querySelector('.pagination-wrapper');
-        
-        // Actualizar la tabla
-        const currentTableBody = document.getElementById('employeesTable');
-        if (newTableBody && currentTableBody) {
-            currentTableBody.innerHTML = newTableBody.innerHTML;
-        }
-        
-        // Actualizar la paginación
-        const currentPagination = document.querySelector('.pagination-wrapper');
-        if (newPagination && currentPagination) {
-            currentPagination.innerHTML = newPagination.innerHTML;
-        } else if (!newPagination && currentPagination) {
-            currentPagination.style.display = 'none';
-        }
-        
-        hideLoadingIndicator();
-        
-    } catch (error) {
-        console.error('Error en búsqueda:', error);
-        hideLoadingIndicator();
-        showToast('Error al realizar la búsqueda', 'error');
-    }
+
+    // Recargar página con filtros
+    const url = params.toString() ? `/empleados?${params.toString()}` : '/empleados';
+    window.location.href = url;
 }
 
-/**
- * Muestra indicador de carga
- */
-function showLoadingIndicator() {
-    const tableBody = document.getElementById('employeesTable');
-    if (tableBody) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center" style="padding: 2rem;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                        <div class="spinner"></div>
-                        <span>Buscando empleados...</span>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }
-}
-
-/**
- * Oculta indicador de carga
- */
-function hideLoadingIndicator() {
-    // El indicador se oculta cuando se actualiza la tabla
-}
-
-/**
- * Aplica todos los filtros - Búsqueda global en base de datos
- */
-function applyFilters() {
-    // Usar búsqueda global en lugar de filtros locales
-    performGlobalSearch();
-}
-
-/**
- * Limpia todos los filtros
- */
-function clearFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('filterCargo').value = '';
-    document.getElementById('filterArea').value = '';
-    
-    // Recargar la página para mostrar todos los empleados
+window.clearFilters = function() {
     window.location.href = '/empleados';
 }
 
-/* ====================
-   TOAST NOTIFICATIONS
-   ==================== */
+// ==========================================
+// TOAST NOTIFICATIONS
+// ==========================================
 
-/**
- * Muestra una notificación toast
- * @param {string} message - Mensaje a mostrar
- * @param {string} type - Tipo: 'success', 'error', 'warning'
- */
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toastContainer');
-    
+const toastIcons = {
+    success: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>`,
+    error: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+    </svg>`,
+    info: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>`
+};
+
+const toastTitles = {
+    success: '¡Éxito!',
+    error: 'Error',
+    info: 'Información'
+};
+
+window.showToast = function(message, type = 'info', title = null, duration = 5000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    
-    const icon = type === 'success' 
-        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>'
-        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>';
-    
+    toast.className = `toast ${type}`;
+    const toastId = 'toast_' + Date.now();
+    toast.id = toastId;
+
     toast.innerHTML = `
-        <div class="toast-icon">${icon}</div>
+        <div class="toast-icon">${toastIcons[type]}</div>
         <div class="toast-content">
-            <p class="toast-title">${type === 'success' ? 'Éxito' : 'Error'}</p>
-            <p class="toast-message">${message}</p>
+            <div class="toast-title">${title || toastTitles[type]}</div>
+            <div class="toast-message">${message}</div>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-        </button>
+        <button class="toast-close" onclick="closeToast('${toastId}')">&times;</button>
     `;
-    
+
     container.appendChild(toast);
-    
-    // Auto-remover después de 5 segundos
+
     setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        setTimeout(() => toast.remove(), 300);
-    }, 5000);
+        closeToast(toastId);
+    }, duration);
 }
 
-/* ====================
-   INITIALIZATION
-   ==================== */
+window.closeToast = function(toastId) {
+    const toast = document.getElementById(toastId);
+    if (toast) {
+        toast.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => toast.remove(), 300);
+    }
+}
 
-// Hacer funciones disponibles globalmente
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.confirmDeactivate = confirmDeactivate;
-window.closeConfirmModal = closeConfirmModal;
-window.editEmployee = editEmployee;
-window.saveEmployee = saveEmployee;
-window.deactivateEmployee = deactivateEmployee;
-window.searchEmployees = searchEmployees;
-window.performGlobalSearch = performGlobalSearch;
-window.applyFilters = applyFilters;
-window.clearFilters = clearFilters;
-window.showToast = showToast;
+// ==========================================
+// INITIALIZATION
+// ==========================================
 
-// Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Módulo de Empleados cargado');
-});
+    console.log('Módulo de Empleados cargado correctamente');
 
+    // Establecer valores de filtros desde la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const cargoFilter = document.getElementById('filterCargo');
+    const areaFilter = document.getElementById('filterArea');
+    const searchInput = document.getElementById('searchInput');
+
+    if (cargoFilter && urlParams.get('cargo')) {
+        cargoFilter.value = urlParams.get('cargo');
+    }
+
+    if (areaFilter && urlParams.get('area')) {
+        areaFilter.value = urlParams.get('area');
+    }
+
+    if (searchInput && urlParams.get('search')) {
+        searchInput.value = urlParams.get('search');
+    }
+});

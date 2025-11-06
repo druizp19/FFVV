@@ -6,9 +6,17 @@ use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\ZonaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\HistorialController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/', function () {
-    return redirect()->route('ciclos.index');
+    return redirect()->route('dashboard.index');
+});
+
+// Rutas de Dashboard
+Route::prefix('dashboard')->name('dashboard.')->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('index');
+    Route::get('/chart-data', [DashboardController::class, 'getChartData'])->name('chartData');
+    Route::get('/estadisticas/{idCiclo}', [DashboardController::class, 'getEstadisticasCiclo'])->name('estadisticas');
 });
 
 // Rutas de Ciclos
@@ -38,6 +46,7 @@ Route::prefix('empleados')->name('empleados.')->group(function () {
 Route::prefix('zonas')->name('zonas.')->group(function () {
     Route::get('/', [ZonaController::class, 'index'])->name('index');
     Route::get('/{id}', [ZonaController::class, 'show'])->name('show');
+    Route::get('/{id}/detalles', [ZonaController::class, 'detalles'])->name('detalles');
     Route::post('/', [ZonaController::class, 'store'])->name('store');
     Route::put('/{id}', [ZonaController::class, 'update'])->name('update');
     Route::delete('/{id}', [ZonaController::class, 'destroy'])->name('destroy');

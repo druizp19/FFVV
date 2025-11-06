@@ -33,8 +33,29 @@
                 <select class="filter-select" name="ciclo" id="ciclo">
                     <option value="">Todos los ciclos</option>
                     @foreach($ciclos as $c)
+                        @php
+                            // Determinar si el ciclo está cerrado
+                            $esCerrado = false;
+                            
+                            // Verificar por fecha de fin
+                            if ($c->fechaFin) {
+                                $fechaFin = \Carbon\Carbon::parse($c->fechaFin)->startOfDay();
+                                $hoy = \Carbon\Carbon::now()->startOfDay();
+                                $esCerrado = $fechaFin->lt($hoy);
+                            }
+                            
+                            // Fallback: verificar por estado si no hay fecha
+                            if (!$esCerrado && $c->relationLoaded('estado') && $c->getRelation('estado')) {
+                                $estadoRelacion = $c->getRelation('estado');
+                                if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                                    $esCerrado = true;
+                                }
+                            }
+                            
+                            $estadoTexto = $esCerrado ? 'Cerrado' : ($c->relationLoaded('estado') && $c->getRelation('estado') ? $c->getRelation('estado')->estado : '');
+                        @endphp
                         <option value="{{ $c->idCiclo }}" {{ request('ciclo') == $c->idCiclo ? 'selected' : '' }}>
-                            {{ $c->ciclo ?? $c->idCiclo }}
+                            {{ $c->ciclo ?? $c->idCiclo }}@if($estadoTexto) - {{ $estadoTexto }}@endif
                         </option>
                     @endforeach
                 </select>

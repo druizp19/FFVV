@@ -43,8 +43,21 @@ class ProductoController extends Controller
             $query->where('idCiclo', $request->ciclo);
         }
 
+        // Si no se especifica estado, filtrar por activos por defecto
         if ($request->filled('estado')) {
             $query->where('idEstado', $request->estado);
+        } else {
+            // Filtrar por estado activo por defecto
+            $estadoActivo = \App\Models\Estado::where('estado', 'Activo')->first();
+            if ($estadoActivo) {
+                $query->where('idEstado', $estadoActivo->idEstado);
+            }
+        }
+
+        if ($request->filled('marca')) {
+            $query->whereHas('marcaMkt.marca', function ($q) use ($request) {
+                $q->where('idMarca', $request->marca);
+            });
         }
 
         $productos = $query->orderBy('idProducto', 'desc')
@@ -52,9 +65,20 @@ class ProductoController extends Controller
             ->appends($request->except('page'));
 
         $estados = \App\Models\Estado::all();
-        $ciclos = \App\Models\Ciclo::orderBy('idCiclo', 'desc')->get();
+        $ciclos = \App\Models\Ciclo::with('estado')->orderBy('idCiclo', 'desc')->get();
+        $marcas = \App\Models\Marca::with('estado')
+            ->whereHas('estado', function ($q) {
+                $q->where('estado', 'Activo');
+            })
+            ->orderBy('marca', 'asc')
+            ->get();
+        
+        $cuotas = \App\Models\Cuota::orderBy('cuota', 'asc')->get();
+        $promociones = \App\Models\Promocion::orderBy('promocion', 'asc')->get();
+        $alcances = \App\Models\Alcance::orderBy('alcance', 'asc')->get();
+        $cores = \App\Models\Core::orderBy('core', 'asc')->get();
 
-        return view('productos.index', compact('productos', 'estados', 'ciclos'));
+        return view('productos.index', compact('productos', 'estados', 'ciclos', 'marcas', 'cuotas', 'promociones', 'alcances', 'cores'));
     }
 
     /**
@@ -135,9 +159,9 @@ class ProductoController extends Controller
             'idFranqLinea' => 'sometimes|required|integer',
             'idMarcaMkt' => 'sometimes|required|integer',
             'idCore' => 'sometimes|required|integer',
-            'idCuota' => 'sometimes|required|integer',
-            'idPromocion' => 'sometimes|required|integer',
-            'idAlcance' => 'sometimes|required|integer',
+            'idCuota' => 'nullable|integer',
+            'idPromocion' => 'nullable|integer',
+            'idAlcance' => 'nullable|integer',
             'idEstado' => 'sometimes|required|integer',
             'fechaModificacion' => 'nullable|date',
             'fechaCierre' => 'nullable|date',

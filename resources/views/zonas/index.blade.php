@@ -3,200 +3,178 @@
 @section('title', 'Zonas - PharmaSales')
 
 @section('content')
-<div class="zones-container">
-    {{-- Header Section --}}
-    <header class="page-header">
-        <div class="header-content">
-            <div class="header-text">
-                <h1 class="page-title">Gestión de Zonas</h1>
-                <p class="page-description">Administra las zonas geográficas y sus asignaciones por ciclo</p>
-            </div>
-            <button class="btn btn-primary" onclick="openModal('create')">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M5 12h14"/>
-                </svg>
-                Nueva Zona
-            </button>
+{{-- Page Header --}}
+<div class="page-header">
+    <div class="header-content">
+        <div class="header-text">
+            <h1 class="page-title">Gestión de Zonas</h1>
+            <p class="page-subtitle">Administra las zonas geográficas y sus asignaciones</p>
         </div>
-    </header>
+        <button class="btn btn-primary" onclick="openModal('create')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Nueva Zona</span>
+        </button>
+    </div>
+</div>
 
-    {{-- Cycle Selector --}}
-    <div class="cycle-selector-card">
-        <div class="cycle-selector-header">
-            <div class="cycle-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <path d="M16 2v4M8 2v4M3 10h18"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="cycle-title">Seleccionar Ciclo</h3>
-                <p class="cycle-description">Filtra las asignaciones por ciclo específico</p>
-            </div>
+{{-- Filters Section --}}
+<div class="filters-section">
+    <div class="filter-card">
+        <div class="filter-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span>Ciclo</span>
         </div>
-        <select class="cycle-select" id="cycleFilter" onchange="filterByCycle()">
+        <select class="filter-select" id="cycleFilter" onchange="filterByCycle()">
             <option value="">Todos los ciclos</option>
             @foreach($ciclos as $ciclo)
-                <option value="{{ $ciclo->idCiclo }}" {{ request('ciclo') == $ciclo->idCiclo ? 'selected' : '' }}>
-                    {{ $ciclo->ciclo }}
-                    @if($ciclo->relationLoaded('estado') && $ciclo->getRelation('estado'))
-                        - {{ $ciclo->getRelation('estado')->estado }}
-                    @endif
+                @php
+                    $esCerrado = false;
+                    if ($ciclo->fechaFin) {
+                        $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                        $hoy = \Carbon\Carbon::now()->startOfDay();
+                        $esCerrado = $fechaFin->lt($hoy);
+                    }
+                    if ($ciclo->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                    $estadoTexto = $esCerrado ? 'Cerrado' : 'Activo';
+                @endphp
+                <option value="{{ $ciclo->idCiclo }}" data-cerrado="{{ $esCerrado ? 'true' : 'false' }}" {{ $cicloSeleccionado == $ciclo->idCiclo ? 'selected' : '' }}>
+                    {{ $ciclo->ciclo }} ({{ $estadoTexto }})
                 </option>
             @endforeach
         </select>
     </div>
 
-    {{-- Mensaje de ciclo cerrado --}}
-    <div class="cycle-closed-warning" id="cycleClosedWarning" style="display: none;">
-        <div class="warning-content">
-            <div class="warning-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-            </div>
-            <div class="warning-text">
-                <h4>Ciclo Cerrado</h4>
-                <p>Este ciclo está cerrado. Solo puedes visualizar las asignaciones, no realizar modificaciones.</p>
-            </div>
-        </div>
-    </div>
-
-    {{-- Search Bar --}}
-    <div class="toolbar">
-        <div class="search-wrapper">
-            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
+    <div class="filter-card">
+        <div class="filter-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
             </svg>
-            <input 
-                type="text" 
-                class="search-input" 
-                placeholder="Buscar zona por nombre..."
-                id="searchInput"
-                value="{{ request('search') }}"
-                oninput="searchZones()"
-            >
+            <span>Buscar</span>
         </div>
-
-        <button class="btn btn-secondary btn-icon" onclick="clearFilters()" title="Limpiar filtros">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-            </svg>
-        </button>
+        <input type="text" class="filter-input" id="searchInput" placeholder="Buscar zona..." onkeyup="searchZones()">
     </div>
+</div>
 
-    {{-- Table Container --}}
-    <div class="card">
-        <table class="data-table">
+{{-- Warning for closed cycle --}}
+<div class="alert alert-warning" id="cycleClosedWarning" style="display: none;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+    <span>Este ciclo está cerrado. No se pueden realizar modificaciones.</span>
+</div>
+
+{{-- Zones Table --}}
+<div class="zones-table-container">
+    <div class="table-wrapper">
+        <table class="zones-table" id="zonesTable">
             <thead>
                 <tr>
-                    <th>ID</th>
                     <th>Zona</th>
+                    <th>Estado</th>
                     <th>Empleados</th>
                     <th>Geosegmentos</th>
-                    <th>Ubigeos</th>
-                    <th>Estado</th>
-                    <th class="text-center">Acciones</th>
+                    <th class="text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="zonesTableBody">
                 @forelse($zonas as $zona)
-                <tr data-zona-id="{{ $zona->idZona }}">
-                    <td>
-                        <span class="badge badge-id">{{ $zona->idZona }}</span>
-                    </td>
-                    <td>
-                        <div class="zone-info">
-                            <span class="zone-name">{{ $zona->zona }}</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="stat-badge">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                            </svg>
-                            <span id="empleados-count-{{ $zona->idZona }}">{{ $zona->zonasEmpleados->count() }}</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="stat-badge">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                                <circle cx="12" cy="10" r="3"/>
-                            </svg>
-                            <span id="geosegmentos-count-{{ $zona->idZona }}">{{ $zona->zonasGeosegmentos->count() }}</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="stat-badge">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-                            </svg>
-                            <span id="ubigeos-count-{{ $zona->idZona }}">
-                                @php
-                                    $ubigeoCount = 0;
-                                    foreach($zona->zonasGeosegmentos as $zg) {
-                                        if ($zg->geosegmento) {
-                                            $ubigeoCount += $zg->geosegmento->ubigeos->count() ?? 0;
-                                        }
-                                    }
-                                @endphp
-                                {{ $ubigeoCount }}
+                    <tr data-zone-id="{{ $zona->idZona }}" data-zone-name="{{ $zona->zona }}">
+                        <td>
+                            <div class="zone-name">
+                                <div class="zone-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                </div>
+                                <span class="zone-text">{{ $zona->zona }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            @php
+                                $estadoNombre = 'Inactivo';
+                                if ($zona->estado && is_object($zona->estado)) {
+                                    $estadoNombre = $zona->estado->estado ?? 'Inactivo';
+                                }
+                            @endphp
+                            <span class="status-badge status-{{ strtolower($estadoNombre) }}">
+                                <span class="status-dot"></span>
+                                {{ $estadoNombre }}
                             </span>
-                        </div>
-                    </td>
-                    <td>
-                        @if($zona->idEstado == 1)
-                            <span class="status status-active">Activo</span>
-                        @else
-                            <span class="status status-inactive">Inactivo</span>
-                        @endif
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-action btn-action-view" onclick="viewZoneDetails({{ $zona->idZona }})" title="Ver detalles">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
+                        </td>
+                        <td>
+                            <div class="count-badge">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                                 </svg>
-                            </button>
-                            <button class="btn-action btn-action-edit" onclick="editZone({{ $zona->idZona }})" title="Editar">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                <span>{{ $zona->zonasEmpleados->count() }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="count-badge">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                    <circle cx="12" cy="10" r="3"></circle>
                                 </svg>
-                            </button>
-                            @if($zona->idEstado == 1)
-                            <button class="btn-action btn-action-delete" onclick="confirmDeactivate({{ $zona->idZona }}, '{{ $zona->zona }}')" title="Desactivar">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                                    <path d="M10 11v6M14 11v6"/>
-                                </svg>
-                            </button>
-                            @endif
-                        </div>
-                    </td>
-                </tr>
+                                <span>{{ $zona->zonasGeosegmentos->count() }}</span>
+                            </div>
+                        </td>
+                        <td class="text-right">
+                            <div class="action-buttons">
+                                <button class="action-btn action-view" onclick="viewZoneDetails({{ $zona->idZona }})" title="Ver detalles">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                                <button class="action-btn action-edit" onclick="openModal('edit', {{ $zona->idZona }})" title="Editar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                                <button class="action-btn action-delete" onclick="confirmDeactivate({{ $zona->idZona }}, '{{ $zona->zona }}')" title="Desactivar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
                 @empty
-                <tr>
-                    <td colspan="7" class="empty-state">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10"/>
-                            <path d="M12 8v4M12 16h.01"/>
-                        </svg>
-                        <h3>No hay zonas disponibles</h3>
-                        <p>Comienza creando una nueva zona</p>
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <p>No hay zonas registradas</p>
+                        </td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>
-
-        @if($zonas->hasPages())
+    </div>
+    
+    {{-- Pagination --}}
+    @if($zonas->hasPages())
         <div class="pagination-wrapper">
             <div class="pagination-info">
                 Mostrando {{ $zonas->firstItem() }} - {{ $zonas->lastItem() }} de {{ $zonas->total() }} zonas
@@ -205,34 +183,28 @@
                 {{ $zonas->links('vendor.pagination.custom') }}
             </div>
         </div>
-        @endif
-    </div>
+    @endif
 </div>
 
 {{-- Modal Crear/Editar Zona --}}
 <div class="modal" id="zoneModal">
-    <div class="modal-overlay" onclick="closeModal()"></div>
     <div class="modal-dialog">
-        <div class="modal-header">
-            <h2 class="modal-title" id="modalTitle">Nueva Zona</h2>
-            <button class="modal-close" onclick="closeModal()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Nueva Zona</h2>
+                <button class="modal-close" onclick="closeModal()" type="button">&times;</button>
+            </div>
 
-        <form id="zoneForm" onsubmit="saveZone(event)">
-            <div class="modal-body">
-                <input type="hidden" id="zoneId">
+            <form id="zoneForm" onsubmit="saveZone(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="zoneId">
 
-                <div class="form-grid">
-                    <div class="form-group full-width">
+                    <div class="form-group">
                         <label class="form-label">Nombre de la Zona <span class="required">*</span></label>
                         <input type="text" class="form-input" id="zona" required placeholder="Ej: Zona Norte">
                     </div>
 
-                    <div class="form-group full-width" id="estadoGroup" style="display: none;">
+                    <div class="form-group" id="estadoGroup" style="display: none;">
                         <label class="form-label">Estado <span class="required">*</span></label>
                         <select class="form-select" id="idEstado">
                             @foreach($estados as $estado)
@@ -243,36 +215,25 @@
                         </select>
                     </div>
                 </div>
-            </div>
 
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                        <path d="M17 21v-8H7v8M7 3v5h8"/>
-                    </svg>
-                    Guardar
-                </button>
-            </div>
-        </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 {{-- Modal Ver Detalles --}}
 <div class="modal" id="detailsModal">
-    <div class="modal-overlay" onclick="closeDetailsModal()"></div>
-    <div class="modal-dialog modal-lg">
-        <div class="modal-header">
-            <h2 class="modal-title" id="detailsTitle">Detalles de la Zona</h2>
-            <button class="modal-close" onclick="closeDetailsModal()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content details-modal-content">
+            <div class="modal-header">
+                <h2 id="detailsTitle">Detalles de la Zona</h2>
+                <button class="modal-close" onclick="closeDetailsModal()" type="button">&times;</button>
+            </div>
 
-        <div class="modal-body">
             <div id="detailsContent">
                 <div class="loading-spinner">
                     <div class="spinner"></div>
@@ -280,91 +241,142 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeDetailsModal()">Cerrar</button>
+{{-- Modal Confirmar Acción --}}
+<div class="modal" id="confirmModal">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirmar Acción</h2>
+                <button class="modal-close" onclick="closeConfirmModal()" type="button">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <p class="confirm-message" id="confirmMessage"></p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancelar</button>
+                <button class="btn btn-danger" id="confirmButton" onclick="executeConfirmAction()">
+                    <span id="confirmButtonText">Confirmar</span>
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-{{-- Modal Confirmar Desactivación --}}
-<div class="modal" id="confirmModal">
-    <div class="modal-overlay" onclick="closeConfirmModal()"></div>
-    <div class="modal-dialog modal-sm">
-        <div class="modal-header">
-            <h2 class="modal-title" id="confirmTitle">Confirmar Acción</h2>
-            <button class="modal-close" onclick="closeConfirmModal()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
+{{-- Modal Agregar Empleado --}}
+<div class="modal" id="addEmpleadoModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Agregar Empleados</h2>
+                <button class="modal-close" onclick="closeAddEmpleadoModal()" type="button">&times;</button>
+            </div>
 
-        <div class="modal-body">
-            <p class="confirm-message" id="confirmMessage"></p>
-        </div>
+            <div class="modal-body">
+                {{-- Buscador --}}
+                <div class="form-group">
+                    <input 
+                        type="text" 
+                        class="form-input" 
+                        id="empSearchInput" 
+                        placeholder="Buscar empleado..." 
+                        onkeyup="searchEmpleados()"
+                        autocomplete="off"
+                    >
+                </div>
 
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancelar</button>
-            <button class="btn btn-danger" id="confirmButton" onclick="executeConfirmAction()">
-                <span id="confirmButtonText">Confirmar</span>
-            </button>
+                {{-- Lista de Empleados --}}
+                <div class="emp-list-container" id="empListContainer">
+                    <div class="emp-list" id="empList">
+                        <div class="geo-empty">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                            <p>Escribe para buscar empleados...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAddEmpleadoModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmSaveEmpleados()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Agregar Geosegmento --}}
+<div class="modal" id="addGeosegmentoModal">
+    <div class="modal-dialog modal-geo-horizontal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Agregar Geosegmentos</h2>
+                <button class="modal-close" onclick="closeAddGeosegmentoModal()" type="button">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                {{-- Buscador --}}
+                <div class="geo-search-wrapper">
+                    <div class="geo-search-box">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <input 
+                            type="text" 
+                            class="geo-search-input" 
+                            id="geoSearchInput" 
+                            placeholder="Buscar geosegmento..." 
+                            onkeyup="searchGeosegmentos()"
+                            autocomplete="off"
+                        >
+                    </div>
+                </div>
+
+                {{-- Grid de Geosegmentos --}}
+                <div class="geo-grid-container">
+                    <div class="geo-grid" id="geoGrid">
+                        <div class="geo-loading">
+                            <div class="spinner"></div>
+                            <p>Cargando geosegmentos...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAddGeosegmentoModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmSaveGeosegmentos()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Guardar
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 {{-- Toast Container --}}
-<div class="toast-container" id="toastContainer"></div>
+<div id="toast-container" class="toast-container"></div>
 
-{{-- Scripts para pasar datos a JavaScript --}}
+{{-- Scripts --}}
 <script>
     window.geosegmentosData = @json($geosegmentos);
     window.ciclosData = @json($ciclos);
-    window.cicloSeleccionado = @json($cicloSeleccionado);
-    
-    // Función para verificar si el ciclo seleccionado está cerrado
-    window.isCicloCerrado = function() {
-        if (!window.cicloSeleccionado) return false;
-        
-        const ciclo = window.ciclosData.find(c => c.idCiclo == window.cicloSeleccionado);
-        if (!ciclo) return false;
-        
-        // Verificar por fecha de fin
-        if (ciclo.fechaFin) {
-            const fechaFin = new Date(ciclo.fechaFin);
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fechas
-            
-            return fechaFin < hoy;
-        }
-        
-        // Fallback: verificar por estado si no hay fecha
-        return ciclo.estado && ciclo.estado.estado === 'Cerrado';
-    };
-    
-    // Función para obtener el estado del ciclo seleccionado
-    window.getEstadoCicloSeleccionado = function() {
-        if (!window.cicloSeleccionado) return null;
-        
-        const ciclo = window.ciclosData.find(c => c.idCiclo == window.cicloSeleccionado);
-        if (!ciclo) return null;
-        
-        // Verificar por fecha de fin
-        if (ciclo.fechaFin) {
-            const fechaFin = new Date(ciclo.fechaFin);
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0);
-            
-            if (fechaFin < hoy) {
-                return { estado: 'Cerrado' };
-            }
-        }
-        
-        // Fallback: usar el estado de la base de datos
-        return ciclo.estado;
-    };
+    window.empleadosData = @json($empleados);
 </script>
-
 @endsection
 
 @push('styles')

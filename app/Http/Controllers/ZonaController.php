@@ -51,6 +51,32 @@ class ZonaController extends Controller
         // Si hay un ciclo seleccionado, obtener datos filtrados por ese ciclo
         $cicloSeleccionado = $request->get('ciclo');
         
+        // Si no hay ciclo seleccionado, buscar el ciclo activo más reciente
+        if (!$cicloSeleccionado) {
+            $cicloActivo = $ciclos->filter(function ($ciclo) {
+                $esCerrado = false;
+                
+                // Verificar por fecha de fin
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                // Verificar por estado
+                if (!$esCerrado && $ciclo->estado) {
+                    $esCerrado = $ciclo->estado->estado === 'Cerrado';
+                }
+                
+                return !$esCerrado; // Retornar solo ciclos activos
+            })->sortByDesc('idCiclo')->first(); // Obtener el más reciente
+            
+            // Si hay un ciclo activo, seleccionarlo por defecto
+            if ($cicloActivo) {
+                $cicloSeleccionado = $cicloActivo->idCiclo;
+            }
+        }
+        
         // Query base: SIEMPRE traer todas las zonas
         $query = \App\Models\Zona::with(['estado']);
         
@@ -860,6 +886,87 @@ class ZonaController extends Controller
                 'success' => false,
                 'message' => 'Error al reactivar el geosegmento: ' . $e->getMessage()
             ], 400);
+        }
+    }
+
+    /**
+     * Obtiene los detalles completos de una zona con empleados y geosegmentos.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function detalles(Request $request, int $id): JsonResponse
+    {
+        try {
+            $cicloId = $request->get('ciclo');
+            
+            $query = \App\Models\Zona::with(['estado']);
+            
+            if ($cicloId) {
+                $query->with([
+                    'zonasEmpleados' => function ($q) use ($cicloId) {
+                        $q->where('idCiclo', $cicloId)
+                          ->where('idEstado', 1)
+                          ->with('empleado');
+                    },
+                    'zonasGeosegmentos' => function ($q) use ($cicloId) {
+                        $q->where('idCiclo', $cicloId)
+                          ->where('idEstado', 1)
+                          ->with('geosegmento');
+                    }
+                ]);
+            } else {
+                $query->with([
+                    'zonasEmpleados' => function ($q) {
+                        $q->where('idEstado', 1)->with('empleado');
+                    },
+                    'zonasGeosegmentos' => function ($q) {
+                        $q->where('idEstado', 1)->with('geosegmento');
+                    }
+                ]);
+            }
+            
+            $zona = $query->find($id);
+
+            if (!$zona) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zona no encontrada.'
+                ], 404);
+            }
+
+            // Formatear empleados
+            $empleados = $zona->zonasEmpleados->map(function ($ze) {
+                return [
+                    'id' => $ze->idZonaEmp,
+                    'nombre' => $ze->empleado->nombre ?? 'Sin nombre'
+                ];
+            });
+
+            // Formatear geosegmentos
+            $geosegmentos = $zona->zonasGeosegmentos->map(function ($zg) {
+                return [
+                    'id' => $zg->idZonaGeo,
+                    'geosegmento' => $zg->geosegmento->geosegmento ?? 'Sin nombre'
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'zona' => [
+                    'idZona' => $zona->idZona,
+                    'zona' => $zona->zona,
+                    'estado' => $zona->estado->estado ?? 'Desconocido',
+                    'empleados' => $empleados,
+                    'geosegmentos' => $geosegmentos
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

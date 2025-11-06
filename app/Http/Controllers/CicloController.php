@@ -31,7 +31,23 @@ class CicloController extends Controller
     {
         $ciclos = $this->cicloService->getAllCiclos();
 
-        return view('ciclos.index', compact('ciclos'));
+        // Verificar si hay algún ciclo abierto
+        $hayCicloAbierto = $ciclos->contains(function ($ciclo) {
+            $fechaActual = \Carbon\Carbon::now()->startOfDay();
+            $fechaInicio = \Carbon\Carbon::parse($ciclo->fechaInicio)->startOfDay();
+            $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+            
+            $dentroRango = $fechaActual->between($fechaInicio, $fechaFin);
+            
+            $esActivo = false;
+            if ($ciclo->estado && is_object($ciclo->estado)) {
+                $esActivo = $ciclo->estado->estado === 'Activo';
+            }
+            
+            return $dentroRango && $esActivo;
+        });
+
+        return view('ciclos.index', compact('ciclos', 'hayCicloAbierto'));
     }
 
     /**
@@ -42,6 +58,33 @@ class CicloController extends Controller
      */
     public function store(CicloRequest $request): JsonResponse
     {
+        // Verificar si hay ciclos abiertos
+        $cicloAbierto = \App\Models\Ciclo::with('estado')
+            ->get()
+            ->first(function ($ciclo) {
+                $fechaActual = \Carbon\Carbon::now()->startOfDay();
+                $fechaInicio = \Carbon\Carbon::parse($ciclo->fechaInicio)->startOfDay();
+                $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                
+                // Verificar si está dentro del rango de fechas
+                $dentroRango = $fechaActual->between($fechaInicio, $fechaFin);
+                
+                // Verificar si el estado es Activo
+                $esActivo = false;
+                if ($ciclo->estado && is_object($ciclo->estado)) {
+                    $esActivo = $ciclo->estado->estado === 'Activo';
+                }
+                
+                return $dentroRango && $esActivo;
+            });
+
+        if ($cicloAbierto) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede crear un nuevo ciclo mientras haya un ciclo abierto. Por favor, cierra el ciclo "' . $cicloAbierto->ciclo . '" antes de continuar.'
+            ], 422);
+        }
+
         $data = $request->validated();
 
         $result = $this->cicloService->crearCiclo($data);
@@ -195,6 +238,33 @@ class CicloController extends Controller
      */
     public function copiarCompleto(Request $request, int $id)
     {
+        // Verificar si hay ciclos abiertos
+        $cicloAbierto = \App\Models\Ciclo::with('estado')
+            ->get()
+            ->first(function ($ciclo) {
+                $fechaActual = \Carbon\Carbon::now()->startOfDay();
+                $fechaInicio = \Carbon\Carbon::parse($ciclo->fechaInicio)->startOfDay();
+                $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                
+                // Verificar si está dentro del rango de fechas
+                $dentroRango = $fechaActual->between($fechaInicio, $fechaFin);
+                
+                // Verificar si el estado es Activo
+                $esActivo = false;
+                if ($ciclo->estado && is_object($ciclo->estado)) {
+                    $esActivo = $ciclo->estado->estado === 'Activo';
+                }
+                
+                return $dentroRango && $esActivo;
+            });
+
+        if ($cicloAbierto) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede copiar un ciclo mientras haya un ciclo abierto. Por favor, cierra el ciclo "' . $cicloAbierto->ciclo . '" antes de continuar.'
+            ], 422);
+        }
+
         $request->validate([
             'ciclo' => 'required|string|max:255',
             'fechaInicio' => 'required|date',

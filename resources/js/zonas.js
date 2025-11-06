@@ -1,184 +1,207 @@
-/* ============================================
-   ZONAS MODULE - JavaScript
-   ============================================ */
+/**
+ * ============================================
+ * Zonas Module - JavaScript
+ * ============================================
+ */
 
 // ==========================================
 // 1. STATE MANAGEMENT
 // ==========================================
 let currentZoneId = null;
 let searchTimeout = null;
-let pendingAction = null; // Para guardar la acción pendiente de confirmación
+let pendingAction = null;
+let cicloSeleccionado = null;
+
+// Obtener CSRF Token
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
 // ==========================================
-// 2. MODAL MANAGEMENT
+// 2. TOAST NOTIFICATIONS
 // ==========================================
 
-/**
- * Abre el modal para crear o editar una zona
- */
-function openModal(mode, zoneId = null) {
-    // Verificar si el ciclo está cerrado
-    if (window.isCicloCerrado && window.isCicloCerrado()) {
+const toastIcons = {
+    success: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>`,
+    error: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+    </svg>`,
+    warning: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>`,
+    info: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>`
+};
+
+const toastTitles = {
+    success: '¡Éxito!',
+    error: 'Error',
+    warning: 'Advertencia',
+    info: 'Información'
+};
+
+window.showToast = function (message, type = 'info', title = null, duration = 5000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const toastId = 'toast_' + Date.now();
+    toast.id = toastId;
+
+    toast.innerHTML = `
+        <div class="toast-icon">${toastIcons[type]}</div>
+        <div class="toast-content">
+            <div class="toast-title">${title || toastTitles[type]}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="closeToast('${toastId}')">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        closeToast(toastId);
+    }, duration);
+}
+
+window.closeToast = function (toastId) {
+    const toast = document.getElementById(toastId);
+    if (toast) {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+    }
+}
+
+// ==========================================
+// 3. MODAL MANAGEMENT
+// ==========================================
+
+window.openModal = function (mode, zoneId = null) {
+    if (isCicloCerrado()) {
         showToast('No se pueden realizar modificaciones en un ciclo cerrado', 'warning');
         return;
     }
-    
+
     const modal = document.getElementById('zoneModal');
     const modalTitle = document.getElementById('modalTitle');
     const form = document.getElementById('zoneForm');
     const estadoGroup = document.getElementById('estadoGroup');
-    const estadoSelect = document.getElementById('idEstado');
-    
-    // Resetear formulario
+
     form.reset();
-    document.getElementById('zoneId').value = '';
-    
+
     if (mode === 'create') {
         modalTitle.textContent = 'Nueva Zona';
-        // Ocultar selector de estado y establecer "Activo" por defecto
         estadoGroup.style.display = 'none';
-        estadoSelect.removeAttribute('required');
-        // Encontrar y seleccionar "Activo" (estado 1)
-        const activeOption = Array.from(estadoSelect.options).find(opt => opt.value == '1');
-        if (activeOption) {
-            estadoSelect.value = activeOption.value;
-        }
+        currentZoneId = null;
     } else if (mode === 'edit' && zoneId) {
         modalTitle.textContent = 'Editar Zona';
-        // Mostrar selector de estado en modo edición
         estadoGroup.style.display = 'block';
-        estadoSelect.setAttribute('required', 'required');
         currentZoneId = zoneId;
         loadZoneData(zoneId);
     }
-    
+
+    modal.classList.remove('closing');
     modal.classList.add('active');
-    
-    // Bloquear sidebar en modo responsive
-    if (window.innerWidth <= 768 && window.blockSidebar) {
-        window.blockSidebar();
-    }
 }
 
-/**
- * Cierra el modal de crear/editar
- */
-function closeModal() {
+window.closeModal = function () {
     const modal = document.getElementById('zoneModal');
-    modal.classList.remove('active');
-    currentZoneId = null;
-    
-    // Desbloquear sidebar
-    if (window.unblockSidebar) {
-        window.unblockSidebar();
-    }
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+        currentZoneId = null;
+    }, 300);
 }
 
-/**
- * Cierra el modal de detalles
- */
-function closeDetailsModal() {
+window.closeDetailsModal = function () {
     const modal = document.getElementById('detailsModal');
-    modal.classList.remove('active');
-    currentZoneId = null; // Resetear aquí cuando se cierre el modal de detalles
-    
-    // Desbloquear sidebar
-    if (window.unblockSidebar) {
-        window.unblockSidebar();
-    }
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+        currentZoneId = null;
+    }, 300);
 }
 
-/**
- * Cierra el modal de confirmación
- */
-function closeConfirmModal() {
+window.closeConfirmModal = function () {
     const modal = document.getElementById('confirmModal');
-    modal.classList.remove('active');
-    // No resetear currentZoneId aquí porque se necesita para las actualizaciones en tiempo real
-    
-    // Desbloquear sidebar
-    if (window.unblockSidebar) {
-        window.unblockSidebar();
-    }
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+    }, 300);
 }
 
 // ==========================================
-// 3. CRUD OPERATIONS
+// 4. ZONE CRUD OPERATIONS
 // ==========================================
 
-/**
- * Carga los datos de una zona para editar
- */
 async function loadZoneData(zoneId) {
     try {
-        const response = await fetch(`/zonas/${zoneId}`);
-        
-        if (!response.ok) {
-            throw new Error('Error al cargar los datos de la zona');
-        }
-        
+        const response = await fetch(`/zonas/${zoneId}`, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
         const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.message || 'Error al cargar la zona');
+
+        if (result.success) {
+            const zona = result.data;
+            document.getElementById('zona').value = zona.zona;
+            document.getElementById('idEstado').value = zona.idEstado;
+        } else {
+            showToast('No se pudo cargar la zona', 'error');
         }
-        
-        const zone = result.data;
-        
-        // Llenar el formulario
-        document.getElementById('zoneId').value = zone.idZona || '';
-        document.getElementById('zona').value = zone.zona || '';
-        document.getElementById('idEstado').value = zone.idEstado || '';
-        
     } catch (error) {
         console.error('Error:', error);
-        showToast(error.message || 'Error al cargar la zona', 'error');
+        showToast('Error al cargar los datos', 'error');
     }
 }
 
-/**
- * Guarda una zona (crear o actualizar)
- */
-async function saveZone(event) {
+window.saveZone = async function (event) {
     event.preventDefault();
-    
-    const zoneId = document.getElementById('zoneId').value;
+
     const zona = document.getElementById('zona').value;
     const idEstado = document.getElementById('idEstado').value;
-    
+
     const data = {
         zona: zona,
-        idEstado: parseInt(idEstado)
+        idEstado: currentZoneId ? idEstado : 1 // Activo por defecto al crear
     };
-    
+
+    const url = currentZoneId ? `/zonas/${currentZoneId}` : '/zonas';
+    const method = currentZoneId ? 'PUT' : 'POST';
+
     try {
-        const url = zoneId ? `/zonas/${zoneId}` : '/zonas';
-        const method = zoneId ? 'PUT' : 'POST';
-        
         const response = await fetch(url, {
             method: method,
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
             },
             body: JSON.stringify(data)
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
-            showToast(
-                zoneId ? 'Zona actualizada exitosamente' : 'Zona creada exitosamente',
-                'success'
-            );
+            showToast(result.message, 'success');
             closeModal();
-            
-            // Recargar la página después de 1 segundo
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            setTimeout(() => window.location.reload(), 1000);
         } else {
-            showToast(result.message || 'Error al guardar la zona', 'error');
+            showToast(result.message, 'error');
         }
     } catch (error) {
         console.error('Error:', error);
@@ -186,87 +209,66 @@ async function saveZone(event) {
     }
 }
 
-/**
- * Abre el modal para editar una zona
- */
-function editZone(zoneId) {
-    openModal('edit', zoneId);
-}
+window.confirmDeactivate = function (zoneId, zoneName) {
+    if (isCicloCerrado()) {
+        showToast('No se pueden realizar modificaciones en un ciclo cerrado', 'warning');
+        return;
+    }
 
-/**
- * Muestra el modal de confirmación genérico
- */
-function showConfirmModal(title, message, buttonText, action) {
     const modal = document.getElementById('confirmModal');
-    const titleElement = document.getElementById('confirmTitle');
-    const messageElement = document.getElementById('confirmMessage');
-    const buttonTextElement = document.getElementById('confirmButtonText');
-    
-    titleElement.textContent = title;
-    messageElement.textContent = message;
-    buttonTextElement.textContent = buttonText;
-    
-    // Guardar la acción a ejecutar
-    pendingAction = action;
-    
+    const message = document.getElementById('confirmMessage');
+    const title = document.getElementById('confirmTitle');
+    const buttonText = document.getElementById('confirmButtonText');
+
+    title.textContent = 'Confirmar Desactivación';
+    message.textContent = `¿Estás seguro de que deseas desactivar la zona "${zoneName}"?`;
+    buttonText.textContent = 'Desactivar';
+
+    pendingAction = {
+        type: 'deactivate',
+        zoneId: zoneId
+    };
+
+    modal.classList.remove('closing');
     modal.classList.add('active');
-    
-    // Bloquear sidebar en modo responsive
-    if (window.innerWidth <= 768 && window.blockSidebar) {
-        window.blockSidebar();
-    }
 }
 
-/**
- * Ejecuta la acción pendiente confirmada
- */
-async function executeConfirmAction() {
-    if (pendingAction && typeof pendingAction === 'function') {
-        await pendingAction();
-        pendingAction = null;
+window.executeConfirmAction = async function () {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === 'deactivate') {
+        await deactivateZone(pendingAction.zoneId);
+    } else if (pendingAction.type === 'addGeosegmentos') {
+        await addMultipleGeosegmentosToZone(pendingAction.geoIds);
+    } else if (pendingAction.type === 'removeGeosegmento') {
+        await removeGeosegmentoFromZone(pendingAction.geoId);
+    } else if (pendingAction.type === 'addEmpleados') {
+        await addMultipleEmpleadosToZone(pendingAction.empIds);
+    } else if (pendingAction.type === 'removeEmpleado') {
+        await removeEmpleadoFromZone(pendingAction.empId);
     }
+
     closeConfirmModal();
+    pendingAction = null;
 }
 
-/**
- * Muestra el modal de confirmación para desactivar zona
- */
-function confirmDeactivate(zoneId, zoneName) {
-    currentZoneId = zoneId;
-    showConfirmModal(
-        'Confirmar Desactivación',
-        `¿Estás seguro de que deseas desactivar la zona "${zoneName}"?`,
-        'Desactivar',
-        deactivateZone
-    );
-}
-
-/**
- * Desactiva una zona
- */
-async function deactivateZone() {
-    if (!currentZoneId) return;
-    
+async function deactivateZone(zoneId) {
     try {
-        const response = await fetch(`/zonas/${currentZoneId}`, {
+        const response = await fetch(`/zonas/${zoneId}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
             }
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
-            showToast('Zona desactivada exitosamente', 'success');
-            
-            // Recargar la página después de 1 segundo
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            showToast(result.message, 'success');
+            setTimeout(() => window.location.reload(), 1000);
         } else {
-            showToast(result.message || 'Error al desactivar la zona', 'error');
+            showToast(result.message, 'error');
         }
     } catch (error) {
         console.error('Error:', error);
@@ -274,861 +276,193 @@ async function deactivateZone() {
     }
 }
 
-/**
- * Muestra los detalles de una zona
- */
-async function viewZoneDetails(zoneId) {
-    // Guardar el ID de la zona actual
-    currentZoneId = zoneId;
-    
+// ==========================================
+// 5. VIEW ZONE DETAILS
+// ==========================================
+
+window.viewZoneDetails = async function (zoneId) {
     const modal = document.getElementById('detailsModal');
-    const detailsContent = document.getElementById('detailsContent');
-    const detailsTitle = document.getElementById('detailsTitle');
-    
-    // Mostrar modal con spinner
-    modal.classList.add('active');
-    
-    // Bloquear sidebar en modo responsive
-    if (window.innerWidth <= 768 && window.blockSidebar) {
-        window.blockSidebar();
-    }
-    
-    detailsContent.innerHTML = `
+    const content = document.getElementById('detailsContent');
+    const title = document.getElementById('detailsTitle');
+
+    currentZoneId = zoneId;
+
+    // Mostrar spinner
+    content.innerHTML = `
         <div class="loading-spinner">
             <div class="spinner"></div>
             <p>Cargando detalles...</p>
         </div>
     `;
-    
-    try {
-        // Obtener ciclo seleccionado
-        const cycleFilter = document.getElementById('cycleFilter');
-        const selectedCycle = cycleFilter ? cycleFilter.value : '';
-        
-        // Cargar datos de la zona
-        const zoneResponse = await fetch(`/zonas/${zoneId}`);
-        if (!zoneResponse.ok) throw new Error('Error al cargar la zona');
-        const zoneResult = await zoneResponse.json();
-        const zone = zoneResult.data;
-        
-        // Actualizar título
-        detailsTitle.textContent = `Detalles de ${zone.zona}`;
-        
-        // Cargar empleados asignados
-        const empleadosUrl = `/zonas/${zoneId}/empleados${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-        const empleadosResponse = await fetch(empleadosUrl);
-        const empleadosResult = await empleadosResponse.json();
-        const empleados = empleadosResult.data || [];
-        
-        // Cargar geosegmentos asignados
-        const geosegmentosUrl = `/zonas/${zoneId}/geosegmentos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-        const geosegmentosResponse = await fetch(geosegmentosUrl);
-        const geosegmentosResult = await geosegmentosResponse.json();
-        const geosegmentos = geosegmentosResult?.data?.activos || [];
-            
-        console.log('geosegmentosResult:', geosegmentosResult);
 
-        // Cargar ubigeos
-        const ubigeosUrl = `/zonas/${zoneId}/ubigeos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-        const ubigeosResponse = await fetch(ubigeosUrl);
-        const ubigeosResult = await ubigeosResponse.json();
-        const ubigeos = ubigeosResult.data || [];
-        
-        // Renderizar contenido
-        detailsContent.innerHTML = `
-            <!-- Buscador de empleados (solo visible en la pestaña de empleados) -->
-            <div id="empleadoSearchContainer" class="empleado-search-container" style="display: block;">
-                <div class="search-input-wrapper">
-                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="M21 21l-4.35-4.35"/>
-                    </svg>
-                    <input type="text" id="empleadoSearchInput" placeholder="Buscar empleados..." onkeyup="searchEmpleados()">
-                </div>
-                <div id="empleadoSearchResults" class="search-results"></div>
-            </div>
-            
-            <!-- Buscador de geosegmentos (solo visible en la pestaña de geosegmentos) -->
-            <div id="geosegmentSearchContainer" class="geosegment-search-container" style="display: none;">
-                <div class="search-input-wrapper">
-                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="M21 21l-4.35-4.35"/>
-                    </svg>
-                    <input type="text" id="geosegmentSearchInput" placeholder="Buscar geosegmentos..." onkeyup="searchGeosegments()">
-                </div>
-                <div id="geosegmentSearchResults" class="search-results"></div>
-            </div>
-            
-            <div class="details-tabs">
-                <button class="tab-button active" id="empleadosTab" onclick="switchTab('empleados')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    Empleados (${empleados.length})
-                </button>
-                <button class="tab-button" id="geosegmentosTab" onclick="switchTab('geosegmentos')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    Geosegmentos (${geosegmentos.length})
-                </button>
-                <button class="tab-button" id="ubigeosTab" onclick="switchTab('ubigeos')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
-                    </svg>
-                    Ubigeos (${ubigeos.length})
-                </button>
-            </div>
-            
-            <div class="tab-content active" id="tabContent">
-                ${renderEmpleadosTab(empleados)}
-            </div>
-        `;
-        
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+
+    try {
+        const cycleFilter = document.getElementById('cycleFilter');
+        const cicloId = cycleFilter ? cycleFilter.value : null;
+
+        const url = cicloId
+            ? `/zonas/${zoneId}/detalles?ciclo=${cicloId}`
+            : `/zonas/${zoneId}/detalles`;
+
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const zona = result.zona;
+            title.textContent = `Detalles: ${zona.zona}`;
+            content.innerHTML = buildDetailsHTML(zona);
+        } else {
+            content.innerHTML = `<p class="error-message">No se pudieron cargar los detalles</p>`;
+        }
     } catch (error) {
         console.error('Error:', error);
-        detailsContent.innerHTML = `
-            <div class="error-state">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 8v4M12 16h.01"/>
-                </svg>
-                <h3>Error al cargar los detalles</h3>
-                <p>${error.message}</p>
-            </div>
-        `;
+        content.innerHTML = `<p class="error-message">Error al cargar los detalles</p>`;
     }
 }
 
-/**
- * Renderiza la pestaña de empleados
- */
-function renderEmpleadosTab(empleados) {
-    if (empleados.length === 0) {
-        return `
-            <div class="empty-tab">
-                <p>No hay empleados asignados a esta zona</p>
-            </div>
-        `;
-    }
-    
+function buildDetailsHTML(zona) {
+    const empleados = zona.empleados || [];
+    const geosegmentos = zona.geosegmentos || [];
+    const esCerrado = isCicloCerrado();
+
     return `
-        <div class="empleados-cards-container">
-                    ${empleados.map(emp => `
-                <div class="empleado-card">
-                    <button class="empleado-card-remove" onclick="removeEmployeeFromZone(${emp.idZonaEmp})" title="Quitar empleado de la zona">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"/>
-                            <line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                    </button>
-                    <div class="empleado-card-content">
-                        <h4 class="empleado-card-name">${emp.empleado ? emp.empleado.nombre : 'N/A'}</h4>
-                        <p class="empleado-card-cargo">${emp.empleado && emp.empleado.cargo ? emp.empleado.cargo.cargo : 'N/A'}</p>
+        <div class="zone-details-body">
+            <div class="zone-details-grid">
+                <!-- Empleados Column -->
+                <div class="zone-detail-column">
+                    <div class="zone-column-header">
+                        <div class="zone-column-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                            <span>Empleados</span>
+                            <span class="zone-count-badge">${empleados.length}</span>
+                        </div>
+                        ${!esCerrado ? `
+                            <button class="zone-add-btn" onclick="openAddEmpleadoModal()" title="Agregar empleado">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <div class="zone-column-content">
+                        ${empleados.length > 0 ? empleados.map(emp => `
+                            <div class="zone-employee-item">
+                                <div class="zone-employee-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                </div>
+                                <span class="zone-employee-name">${emp.nombre}</span>
+                                ${!esCerrado ? `
+                                    <button class="zone-geo-remove" onclick="confirmRemoveEmpleado(${emp.id}, '${emp.nombre}')" title="Quitar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        `).join('') : '<div class="zone-empty-state">No hay empleados asignados</div>'}
                     </div>
                 </div>
-                    `).join('')}
-        </div>
-    `;
-}
 
-/**
- * Renderiza la pestaña de geosegmentos
- */
-function renderGeosegmentosTab(data) {
-    // Verificar si data tiene la nueva estructura (activos/inactivos) o la antigua
-    let activos = [];
-    let inactivos = [];
-    
-    if (data && data.activos !== undefined && data.inactivos !== undefined) {
-        // Nueva estructura
-        activos = data.activos || [];
-        inactivos = data.inactivos || [];
-    } else {
-        // Estructura antigua - solo activos
-        activos = data || [];
-        inactivos = [];
-    }
-    
-    if (activos.length === 0 && inactivos.length === 0) {
-        return `
-            <div class="empty-tab">
-                <p>No hay geosegmentos asignados a esta zona</p>
-            </div>
-        `;
-    }
-    
-    return `
-        <div class="kanban-container">
-            <div class="kanban-column">
-                <div class="kanban-header">
-                    <h3>Activos (${activos.length})</h3>
-                </div>
-                <div class="kanban-cards" id="activos-column" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    ${activos.map(geo => `
-                        <div class="geo-card activo ${window.isCicloCerrado && window.isCicloCerrado() ? 'disabled' : ''}" 
-                             id="geo-card-${geo.idZonaGeo}" 
-                             draggable="${window.isCicloCerrado && window.isCicloCerrado() ? 'false' : 'true'}" 
-                             ondragstart="drag(event)">
-                            <div class="geo-card-name">${geo.geosegmento ? geo.geosegmento.geosegmento : 'N/A'}</div>
-                            <button class="geo-card-remove" onclick="removeGeosegmentFromZone(${geo.idZonaGeo})" title="Quitar">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M18 6L6 18M6 6l12 12"/>
+                <!-- Geosegmentos Column -->
+                <div class="zone-detail-column">
+                    <div class="zone-column-header">
+                        <div class="zone-column-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <span>Geosegmentos</span>
+                            <span class="zone-count-badge">${geosegmentos.length}</span>
+                        </div>
+                        ${!esCerrado ? `
+                            <button class="zone-add-btn" onclick="openAddGeosegmentoModal()" title="Agregar geosegmento">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
                                 </svg>
                             </button>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-            
-            <div class="kanban-column">
-                <div class="kanban-header">
-                    <h3>Inactivos (${inactivos.length})</h3>
-                </div>
-                <div class="kanban-cards" id="inactivos-column" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    ${inactivos.map(geo => `
-                        <div class="geo-card inactivo ${window.isCicloCerrado && window.isCicloCerrado() ? 'disabled' : ''}" 
-                             id="geo-card-${geo.idZonaGeo}" 
-                             draggable="${window.isCicloCerrado && window.isCicloCerrado() ? 'false' : 'true'}" 
-                             ondragstart="drag(event)">
-                            <div class="geo-card-name">${geo.geosegmento ? geo.geosegmento.geosegmento : 'N/A'}</div>
-                            <button class="geo-card-restore" onclick="restoreGeosegmentFromZone(${geo.idZonaGeo})" title="Restaurar">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-                                    <path d="M21 3v5h-5"/>
-                                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-                                    <path d="M3 21v-5h5"/>
-                                </svg>
-                            </button>
-                        </div>
-                    `).join('')}
+                        ` : ''}
+                    </div>
+                    <div class="zone-column-content zone-geo-grid">
+                        ${geosegmentos.length > 0 ? geosegmentos.map(geo => `
+                            <div class="zone-geo-item">
+                                <div class="zone-geo-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                </div>
+                                <span class="zone-geo-name">${geo.geosegmento}</span>
+                                ${!esCerrado ? `
+                                    <button class="zone-geo-remove" onclick="confirmRemoveGeosegmento(${geo.id}, '${geo.geosegmento}')" title="Quitar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        `).join('') : '<div class="zone-empty-state">No hay geosegmentos asignados</div>'}
+                    </div>
                 </div>
             </div>
         </div>
     `;
-}
-
-/**
- * Renderiza la pestaña de ubigeos
- */
-function renderUbigeosTab(ubigeos) {
-    if (ubigeos.length === 0) {
-        return `
-            <div class="empty-tab">
-                <p>No hay ubigeos relacionados con esta zona</p>
-            </div>
-        `;
-    }
-    
-    return `
-        <div class="details-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ubigeo</th>
-                        <th>Departamento</th>
-                        <th>Provincia</th>
-                        <th>Distrito</th>
-                        <th>Geosegmento</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${ubigeos.map(ubi => `
-                        <tr>
-                            <td>${ubi.ubigeo || 'N/A'}</td>
-                            <td>${ubi.departamento || 'N/A'}</td>
-                            <td>${ubi.provincia || 'N/A'}</td>
-                            <td>${ubi.distrito || 'N/A'}</td>
-                            <td>${ubi.geosegmento ? ubi.geosegmento.geosegmento : 'N/A'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-
-/**
- * Cambia entre pestañas en el modal de detalles
- */
-async function switchTab(tabName, event = null) {
-    // Remover clase active de todos los botones
-    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-    
-    // Activar el botón seleccionado
-    let button;
-    if (event && event.target) {
-        button = event.target.closest('.tab-button');
-    } else {
-        // Si no hay evento, buscar el botón por el tabName
-        button = document.getElementById(tabName + 'Tab');
-    }
-    
-    if (button) {
-        button.classList.add('active');
-    }
-    
-    // Obtener el contenedor de contenido
-    const tabContent = document.getElementById('tabContent');
-    if (!tabContent || !currentZoneId) return;
-    
-    try {
-        const cicloFilter = document.getElementById('cycleFilter');
-        const selectedCycle = cicloFilter ? cicloFilter.value : '';
-        
-        // Mostrar/ocultar buscadores según la pestaña
-        const empleadoSearchContainer = document.getElementById('empleadoSearchContainer');
-        const geosegmentSearchContainer = document.getElementById('geosegmentSearchContainer');
-        
-        if (empleadoSearchContainer) {
-            if (tabName === 'empleados') {
-                empleadoSearchContainer.style.display = 'block';
-            } else {
-                empleadoSearchContainer.style.display = 'none';
-            }
-        }
-        
-        if (geosegmentSearchContainer) {
-            if (tabName === 'geosegmentos') {
-                geosegmentSearchContainer.style.display = 'block';
-            } else {
-                geosegmentSearchContainer.style.display = 'none';
-            }
-        }
-        
-        // Cargar datos según la pestaña seleccionada
-        if (tabName === 'empleados') {
-            const url = `/zonas/${currentZoneId}/empleados${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-            const response = await fetch(url);
-            const result = await response.json();
-            tabContent.innerHTML = renderEmpleadosTab(result.data || []);
-        } else if (tabName === 'geosegmentos') {
-            const url = `/zonas/${currentZoneId}/geosegmentos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-            const response = await fetch(url);
-            const result = await response.json();
-            tabContent.innerHTML = renderGeosegmentosTab(result.data || {});
-        } else if (tabName === 'ubigeos') {
-            const url = `/zonas/${currentZoneId}/ubigeos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-            const response = await fetch(url);
-            const result = await response.json();
-            tabContent.innerHTML = renderUbigeosTab(result.data || []);
-        }
-    } catch (error) {
-        console.error('Error al cambiar de pestaña:', error);
-        tabContent.innerHTML = '<div class="error-state"><p>Error al cargar los datos</p></div>';
-    }
 }
 
 // ==========================================
-// 4. SEARCH & FILTERS
+// 6. ADD/REMOVE GEOSEGMENTOS
 // ==========================================
 
-/**
- * Busca zonas por nombre
- */
-function searchZones() {
-    clearTimeout(searchTimeout);
-    
-    searchTimeout = setTimeout(() => {
-        const searchInput = document.getElementById('searchInput');
-        const cycleFilter = document.getElementById('cycleFilter');
-        
-        const searchValue = searchInput.value;
-        const cycleValue = cycleFilter.value;
-        
-        // Construir URL con parámetros
-        const params = new URLSearchParams();
-        if (searchValue) params.append('search', searchValue);
-        if (cycleValue) params.append('ciclo', cycleValue);
-        
-        // Redirigir con los parámetros
-        window.location.href = `/zonas${params.toString() ? '?' + params.toString() : ''}`;
-    }, 500);
-}
 
-/**
- * Filtra por ciclo
- */
-function filterByCycle() {
+
+async function addGeosegmentoToZone(geoId) {
     const cycleFilter = document.getElementById('cycleFilter');
-    const searchInput = document.getElementById('searchInput');
-    const warningElement = document.getElementById('cycleClosedWarning');
-    
-    const cycleValue = cycleFilter.value;
-    const searchValue = searchInput.value;
-    
-    // Mostrar/ocultar mensaje de advertencia
-    if (cycleValue && window.isCicloCerrado && window.isCicloCerrado()) {
-        warningElement.style.display = 'block';
-    } else {
-        warningElement.style.display = 'none';
-    }
-    
-    // Construir URL con parámetros
-    const params = new URLSearchParams();
-    if (searchValue) params.append('search', searchValue);
-    if (cycleValue) params.append('ciclo', cycleValue);
-    
-    // Redirigir con los parámetros
-    window.location.href = `/zonas${params.toString() ? '?' + params.toString() : ''}`;
-}
+    const cicloId = cycleFilter ? cycleFilter.value : null;
 
-/**
- * Limpia todos los filtros
- */
-function clearFilters() {
-    window.location.href = '/zonas';
-}
-
-// ==========================================
-// 5. TOAST NOTIFICATIONS
-// ==========================================
-
-/**
- * Muestra una notificación toast
- */
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toastContainer');
-    
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    
-    const icon = type === 'success' 
-        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
-        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
-    
-    toast.innerHTML = `
-        <div class="toast-icon">${icon}</div>
-        <div class="toast-content">
-            <p class="toast-title">${type === 'success' ? 'Éxito' : 'Error'}</p>
-            <p class="toast-message">${message}</p>
-        </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-        </button>
-    `;
-    
-    container.appendChild(toast);
-    
-    // Auto-remover después de 5 segundos
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        setTimeout(() => toast.remove(), 300);
-    }, 5000);
-}
-
-// ==========================================
-// 6. GEOSEGMENT ACTIONS
-// ==========================================
-
-/**
- * Muestra confirmación antes de quitar un geosegmento de una zona
- */
-function removeGeosegmentFromZone(idZonaGeo) {
-    // Verificar si el ciclo está cerrado
-    if (window.isCicloCerrado && window.isCicloCerrado()) {
-        showToast('No se pueden realizar modificaciones en un ciclo cerrado', 'warning');
+    if (!cicloId) {
+        showToast('Debes seleccionar un ciclo primero', 'warning');
         return;
     }
-    
-    // Obtener el nombre del geosegmento del card
-    const card = document.getElementById(`geo-card-${idZonaGeo}`);
-    const geosegmentoName = card ? card.querySelector('.geo-card-name').textContent : 'este geosegmento';
-    
-    showConfirmModal(
-        'Confirmar Eliminación',
-        `¿Estás seguro de que deseas quitar "${geosegmentoName}" de esta zona?`,
-        'Quitar',
-        () => executeRemoveGeosegment(idZonaGeo)
-    );
-}
 
-/**
- * Ejecuta la desactivación del geosegmento (cambia estado a 0)
- */
-async function executeRemoveGeosegment(idZonaGeo) {
     try {
-        const response = await fetch(`/zonas/geosegmentos/${idZonaGeo}/deactivate`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Actualizar el Kanban inmediatamente
-            await updateKanbanInRealTime();
-            
-            showToast('Geosegmento desasignado exitosamente', 'success');
-        } else {
-            showToast(result.message || 'Error al desasignar el geosegmento', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Error al desasignar el geosegmento', 'error');
-    }
-}
-
-/**
- * Muestra confirmación antes de restaurar un geosegmento
- */
-function restoreGeosegmentFromZone(idZonaGeo) {
-    // Verificar si el ciclo está cerrado
-    if (window.isCicloCerrado && window.isCicloCerrado()) {
-        showToast('No se pueden realizar modificaciones en un ciclo cerrado', 'warning');
-        return;
-    }
-    
-    // Obtener el nombre del geosegmento del card
-    const card = document.getElementById(`geo-card-${idZonaGeo}`);
-    const geosegmentoName = card ? card.querySelector('.geo-card-name').textContent : 'este geosegmento';
-    
-    showConfirmModal(
-        'Confirmar Restauración',
-        `¿Estás seguro de que deseas restaurar "${geosegmentoName}" a esta zona?`,
-        'Restaurar',
-        () => executeRestoreGeosegment(idZonaGeo)
-    );
-}
-
-/**
- * Ejecuta la restauración del geosegmento (cambia estado a 1)
- */
-async function executeRestoreGeosegment(idZonaGeo) {
-    try {
-        const response = await fetch(`/zonas/geosegmentos/${idZonaGeo}/activate`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Actualizar el Kanban inmediatamente
-            await updateKanbanInRealTime();
-            
-            showToast('Geosegmento restaurado exitosamente', 'success');
-        } else {
-            showToast(result.message || 'Error al restaurar el geosegmento', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Error al restaurar el geosegmento', 'error');
-    }
-}
-
-// ==========================================
-// 8. EMPLOYEE SEARCH
-// ==========================================
-
-/**
- * Busca empleados disponibles para agregar a la zona
- */
-async function searchEmpleados() {
-    const searchInput = document.getElementById('empleadoSearchInput');
-    const resultsContainer = document.getElementById('empleadoSearchResults');
-    
-    if (!searchInput || !resultsContainer) return;
-    
-    const searchTerm = searchInput.value.trim();
-    
-    if (searchTerm.length < 2) {
-        resultsContainer.innerHTML = '';
-        return;
-    }
-    
-    try {
-        // Buscar empleados disponibles
-        const response = await fetch(`/empleados/search?q=${encodeURIComponent(searchTerm)}`);
-        const result = await response.json();
-        
-        console.log('Resultado de búsqueda de empleados:', result);
-        
-        if (result.success && result.data && result.data.length > 0) {
-            // Renderizar resultados
-            resultsContainer.innerHTML = result.data.map(empleado => `
-                <div class="search-result-item" onclick="selectEmpleado(${empleado.idEmpleado}, '${empleado.nombre} ${empleado.apeNombre}')">
-                    <div class="result-info">
-                        <h5>${empleado.nombre} ${empleado.apeNombre}</h5>
-                        <p>${empleado.cargo ? empleado.cargo.cargo : 'Sin cargo'} - ${empleado.area ? empleado.area.area : 'Sin área'}</p>
-                    </div>
-                    <div class="result-action">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 5v14M5 12h14"/>
-                        </svg>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            resultsContainer.innerHTML = `
-                <div class="no-results">
-                    <p>No se encontraron empleados con "${searchTerm}"</p>
-                </div>
-            `;
-        }
-        
-    } catch (error) {
-        console.error('Error al buscar empleados:', error);
-        resultsContainer.innerHTML = `
-            <div class="error-results">
-                <p>Error al buscar empleados</p>
-            </div>
-        `;
-    }
-}
-
-/**
- * Selecciona un empleado para agregar a la zona
- */
-function selectEmpleado(empleadoId, empleadoName) {
-    showConfirmModal(
-        'Agregar Empleado',
-        `¿Estás seguro de que deseas agregar "${empleadoName}" a esta zona?`,
-        'Agregar',
-        () => addEmpleadoToZone(empleadoId, empleadoName)
-    );
-}
-
-/**
- * Quita un empleado de la zona (desactiva la relación)
- */
-function removeEmployeeFromZone(idZonaEmp) {
-    // Buscar el empleado para obtener su nombre
-    const empleadoButton = document.querySelector(`button[onclick="removeEmployeeFromZone(${idZonaEmp})"]`);
-    if (!empleadoButton) return;
-    
-    // Buscar la tarjeta del empleado (puede ser .empleado-card o tr)
-    const empleadoCard = empleadoButton.closest('.empleado-card');
-    const empleadoRow = empleadoButton.closest('tr');
-    
-    let empleadoName = '';
-    
-    if (empleadoCard) {
-        // Si es una tarjeta, obtener el nombre del h4
-        const nameElement = empleadoCard.querySelector('.empleado-card-name');
-        empleadoName = nameElement ? nameElement.textContent : 'empleado';
-    } else if (empleadoRow) {
-        // Si es una fila de tabla, obtener el nombre de la primera celda
-        const nameCell = empleadoRow.querySelector('td:first-child');
-        empleadoName = nameCell ? nameCell.textContent : 'empleado';
-    } else {
-        empleadoName = 'empleado';
-    }
-    
-    showConfirmModal(
-        'Quitar Empleado',
-        `¿Estás seguro de que deseas quitar "${empleadoName}" de esta zona?`,
-        'Quitar',
-        () => executeRemoveEmployee(idZonaEmp)
-    );
-}
-
-/**
- * Ejecuta la eliminación del empleado de la zona
- */
-async function executeRemoveEmployee(idZonaEmp) {
-    try {
-        const response = await fetch(`/zonas/empleados/${idZonaEmp}/deactivate`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Actualizar la pestaña de empleados
-            await switchTab('empleados');
-            
-            showToast('Empleado quitado exitosamente', 'success');
-        } else {
-            showToast(result.message || 'Error al quitar el empleado', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Error al quitar el empleado', 'error');
-    }
-}
-
-/**
- * Agrega un empleado a la zona
- */
-async function addEmpleadoToZone(empleadoId, empleadoName) {
-    if (!currentZoneId) return;
-    
-    try {
-        const cicloFilter = document.getElementById('cycleFilter');
-        const selectedCycle = cicloFilter ? cicloFilter.value : '';
-        
-        if (!selectedCycle) {
-            showToast('Debes seleccionar un ciclo para agregar empleados', 'warning');
-            return;
-        }
-        
-        const response = await fetch(`/zonas/${currentZoneId}/empleados`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                idEmpleado: empleadoId,
-                idCiclo: selectedCycle
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Limpiar búsqueda
-            const searchInput = document.getElementById('empleadoSearchInput');
-            const resultsContainer = document.getElementById('empleadoSearchResults');
-            if (searchInput) searchInput.value = '';
-            if (resultsContainer) resultsContainer.innerHTML = '';
-            
-            // Actualizar la pestaña de empleados
-            await switchTab('empleados');
-            
-            showToast('Empleado agregado exitosamente', 'success');
-        } else {
-            showToast(result.message || 'Error al agregar el empleado', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Error al agregar el empleado', 'error');
-    }
-}
-
-// ==========================================
-// 9. GEOSEGMENT SEARCH
-// ==========================================
-
-/**
- * Busca geosegmentos disponibles para agregar a la zona
- */
-async function searchGeosegments() {
-    const searchInput = document.getElementById('geosegmentSearchInput');
-    const resultsContainer = document.getElementById('geosegmentSearchResults');
-    
-    if (!searchInput || !resultsContainer) return;
-    
-    const searchTerm = searchInput.value.trim();
-    
-    if (searchTerm.length < 2) {
-        resultsContainer.innerHTML = '';
-        return;
-    }
-    
-    try {
-        // Buscar en los geosegmentos disponibles
-        const availableGeosegments = window.geosegmentosData || [];
-        const filtered = availableGeosegments.filter(geo => 
-            geo.geosegmento.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        
-        if (filtered.length === 0) {
-            resultsContainer.innerHTML = `
-                <div class="no-results">
-                    <p>No se encontraron geosegmentos con "${searchTerm}"</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Renderizar resultados
-        resultsContainer.innerHTML = filtered.map(geo => `
-            <div class="search-result-item" onclick="selectGeosegment(${geo.idGeosegmento}, '${geo.geosegmento}')">
-                <div class="result-info">
-                    <h5>${geo.geosegmento}</h5>
-                    <p>${geo.lugar || 'Sin ubicación'}</p>
-                </div>
-                <div class="result-action">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                </div>
-            </div>
-        `).join('');
-        
-    } catch (error) {
-        console.error('Error al buscar geosegmentos:', error);
-        resultsContainer.innerHTML = `
-            <div class="error-results">
-                <p>Error al buscar geosegmentos</p>
-            </div>
-        `;
-    }
-}
-
-/**
- * Selecciona un geosegmento para agregar a la zona
- */
-function selectGeosegment(geosegmentId, geosegmentName) {
-    showConfirmModal(
-        'Agregar Geosegmento',
-        `¿Estás seguro de que deseas agregar "${geosegmentName}" a esta zona?`,
-        'Agregar',
-        () => addGeosegmentToZone(geosegmentId, geosegmentName)
-    );
-}
-
-/**
- * Agrega un geosegmento a la zona
- */
-async function addGeosegmentToZone(geosegmentId, geosegmentName) {
-    if (!currentZoneId) return;
-    
-    try {
-        const cicloFilter = document.getElementById('cycleFilter');
-        const selectedCycle = cicloFilter ? cicloFilter.value : '';
-        
-        if (!selectedCycle) {
-            showToast('Debes seleccionar un ciclo para agregar geosegmentos', 'warning');
-            return;
-        }
-        
         const response = await fetch(`/zonas/${currentZoneId}/geosegmentos`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
             },
             body: JSON.stringify({
-                idGeosegmento: geosegmentId,
-                idCiclo: selectedCycle
+                idGeosegmento: geoId,
+                idCiclo: cicloId
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
-            // Limpiar búsqueda
-            const searchInput = document.getElementById('geosegmentSearchInput');
-            const resultsContainer = document.getElementById('geosegmentSearchResults');
-            if (searchInput) searchInput.value = '';
-            if (resultsContainer) resultsContainer.innerHTML = '';
-            
-            // Actualizar el Kanban en tiempo real
-            await updateKanbanInRealTime();
-            
-            showToast('Geosegmento agregado exitosamente', 'success');
+            showToast(result.message, 'success');
+            viewZoneDetails(currentZoneId);
         } else {
-            showToast(result.message || 'Error al agregar el geosegmento', 'error');
+            showToast(result.message, 'error');
         }
     } catch (error) {
         console.error('Error:', error);
@@ -1136,319 +470,606 @@ async function addGeosegmentToZone(geosegmentId, geosegmentName) {
     }
 }
 
-// ==========================================
-// 9. KANBAN REAL-TIME UPDATE
-// ==========================================
-
-/**
- * Actualiza el Kanban en tiempo real sin recargar toda la modal
- */
-async function updateKanbanInRealTime() {
-    if (!currentZoneId) return;
-    
+async function removeGeosegmentoFromZone(geoId) {
     try {
-        console.log('🔄 Actualizando Kanban en tiempo real...');
-        
-        const cicloFilter = document.getElementById('cycleFilter');
-        const selectedCycle = cicloFilter ? cicloFilter.value : '';
-        
-        // Obtener los geosegmentos actualizados
-        const geosegmentosUrl = `/zonas/${currentZoneId}/geosegmentos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-        const response = await fetch(geosegmentosUrl);
+        const response = await fetch(`/zonas/geosegmentos/${geoId}/deactivate`, {
+            method: 'PUT',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        });
+
         const result = await response.json();
-        
+
         if (result.success) {
-            // Actualizar solo la pestaña de geosegmentos
-            const tabContent = document.getElementById('tabContent');
-            const activeTab = document.querySelector('.tab-button.active');
-            
-            // Siempre actualizar el contenido de geosegmentos si existe
-            if (tabContent) {
-                // Si estamos en la pestaña de geosegmentos, actualizar el contenido
-                if (activeTab && activeTab.id === 'geosegmentosTab') {
-                    tabContent.innerHTML = renderGeosegmentosTab(result.data || {});
-                    console.log('✅ Kanban actualizado en tiempo real');
-                }
-                // Si no estamos en la pestaña de geosegmentos, solo actualizar los contadores
-                // pero mantener el contenido actual de la pestaña activa
-            }
-            
-            // Actualizar contadores en las pestañas
-            const activosCount = result.data.activos ? result.data.activos.length : 0;
-            const inactivosCount = result.data.inactivos ? result.data.inactivos.length : 0;
-            const totalCount = activosCount + inactivosCount;
-            
-            // Actualizar contador en la pestaña
-            const geosegmentosTab = document.getElementById('geosegmentosTab');
-            if (geosegmentosTab) {
-                geosegmentosTab.innerHTML = `
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    Geosegmentos (${totalCount})
-                `;
-            }
-            
-            // Actualizar contador en la tabla principal
-            const geosegmentosCountElement = document.getElementById(`geosegmentos-count-${currentZoneId}`);
-            if (geosegmentosCountElement) {
-                geosegmentosCountElement.textContent = totalCount;
-                console.log('✅ Tabla: Actualizado geosegmentos a', totalCount);
-            }
+            showToast(result.message, 'success');
+            viewZoneDetails(currentZoneId);
+        } else {
+            showToast(result.message, 'error');
         }
     } catch (error) {
-        console.error('❌ Error al actualizar Kanban:', error);
+        console.error('Error:', error);
+        showToast('Error al quitar el geosegmento', 'error');
     }
 }
 
 // ==========================================
-// 9. DRAG AND DROP FUNCTIONS
+// MODAL AGREGAR EMPLEADOS
 // ==========================================
 
-/**
- * Permite el drop en las columnas
- */
-function allowDrop(ev) {
-    ev.preventDefault();
+let selectedEmpleados = [];
+
+window.openAddEmpleadoModal = function () {
+    const modal = document.getElementById('addEmpleadoModal');
+    const searchInput = document.getElementById('empSearchInput');
+
+    selectedEmpleados = [];
+    searchInput.value = '';
+    loadEmpleados();
+
+    modal.classList.remove('closing');
+    modal.classList.add('active');
 }
 
-/**
- * Inicia el drag de un elemento
- */
-function drag(ev) {
-    ev.dataTransfer.setData("text", ev.target.id);
-    ev.target.style.opacity = "0.5";
+window.closeAddEmpleadoModal = function () {
+    const modal = document.getElementById('addEmpleadoModal');
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+        selectedEmpleados = [];
+    }, 300);
 }
 
-/**
- * Maneja el drop de un elemento
- */
-function drop(ev) {
-    ev.preventDefault();
-    
-    // Verificar si el ciclo está cerrado
-    if (window.isCicloCerrado && window.isCicloCerrado()) {
-        showToast('No se pueden realizar modificaciones en un ciclo cerrado', 'warning');
-        return;
-    }
-    
-    const data = ev.dataTransfer.getData("text");
-    const draggedElement = document.getElementById(data);
-    const targetColumn = ev.currentTarget;
-    
-    // Restaurar opacidad del elemento arrastrado
-    draggedElement.style.opacity = "1";
-    
-    // Determinar si es un cambio de estado
-    const isFromActivos = draggedElement.closest('#activos-column');
-    const isToInactivos = targetColumn.id === 'inactivos-column';
-    const isFromInactivos = draggedElement.closest('#inactivos-column');
-    const isToActivos = targetColumn.id === 'activos-column';
-    
-    // Si se mueve de activos a inactivos, mostrar confirmación
-    if (isFromActivos && isToInactivos) {
-        const idZonaGeo = data.replace('geo-card-', '');
-        const geosegmentoName = draggedElement.querySelector('.geo-card-name').textContent;
-        
-        showConfirmModal(
-            'Confirmar Desactivación',
-            `¿Estás seguro de que deseas desactivar "${geosegmentoName}"?`,
-            'Desactivar',
-            () => executeRemoveGeosegment(idZonaGeo)
-        );
-        return;
-    }
-    
-    // Si se mueve de inactivos a activos, mostrar confirmación
-    if (isFromInactivos && isToActivos) {
-        const idZonaGeo = data.replace('geo-card-', '');
-        const geosegmentoName = draggedElement.querySelector('.geo-card-name').textContent;
-        
-        showConfirmModal(
-            'Confirmar Restauración',
-            `¿Estás seguro de que deseas restaurar "${geosegmentoName}"?`,
-            'Restaurar',
-            () => executeRestoreGeosegment(idZonaGeo)
-        );
-        return;
-    }
-    
-    // Si no hay cambio de estado, solo mover visualmente
-    targetColumn.appendChild(draggedElement);
+window.searchEmpleados = function () {
+    loadEmpleados();
 }
 
-/**
- * Recarga los detalles de la zona y actualiza los contadores en tiempo real
- */
-async function refreshZoneDetails(zoneId) {
+function loadEmpleados() {
+    const searchTerm = document.getElementById('empSearchInput').value.toLowerCase().trim();
+    const container = document.getElementById('empList');
+
+    // Si no hay término de búsqueda, mostrar mensaje inicial
+    if (!searchTerm) {
+        container.innerHTML = `
+            <div class="geo-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <p>Escribe para buscar empleados...</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (!window.empleadosData || window.empleadosData.length === 0) {
+        container.innerHTML = `
+            <div class="geo-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 8v4M12 16h.01"></path>
+                </svg>
+                <p>No hay empleados disponibles</p>
+            </div>
+        `;
+        return;
+    }
+
+    const filtered = window.empleadosData.filter(emp =>
+        emp.nombre.toLowerCase().includes(searchTerm)
+    );
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="geo-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <p>No se encontraron empleados con "${searchTerm}"</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtered.map(emp => `
+        <div class="emp-list-item ${selectedEmpleados.includes(emp.idEmpleado) ? 'selected' : ''}" 
+             onclick="toggleEmpleado(${emp.idEmpleado})">
+            <div class="emp-list-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+            <span class="emp-list-name">${emp.nombre}</span>
+            <div class="emp-list-check">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.toggleEmpleado = function (empId) {
+    const index = selectedEmpleados.indexOf(empId);
+
+    if (index > -1) {
+        selectedEmpleados.splice(index, 1);
+    } else {
+        selectedEmpleados.push(empId);
+    }
+
+    loadEmpleados();
+}
+
+window.confirmSaveEmpleados = function () {
+    if (selectedEmpleados.length === 0) {
+        showToast('Debes seleccionar al menos un empleado', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('confirmModal');
+    const message = document.getElementById('confirmMessage');
+    const title = document.getElementById('confirmTitle');
+    const buttonText = document.getElementById('confirmButtonText');
+    const confirmBtn = document.getElementById('confirmButton');
+
+    title.textContent = 'Confirmar Agregar';
+    message.textContent = `¿Deseas agregar ${selectedEmpleados.length} empleado${selectedEmpleados.length !== 1 ? 's' : ''} a esta zona?`;
+    buttonText.textContent = 'Agregar';
+
+    confirmBtn.className = 'btn btn-primary';
+
+    pendingAction = {
+        type: 'addEmpleados',
+        empIds: selectedEmpleados
+    };
+
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+window.confirmRemoveEmpleado = function (empId, empName) {
+    const modal = document.getElementById('confirmModal');
+    const message = document.getElementById('confirmMessage');
+    const title = document.getElementById('confirmTitle');
+    const buttonText = document.getElementById('confirmButtonText');
+    const confirmBtn = document.getElementById('confirmButton');
+
+    title.textContent = 'Confirmar Quitar';
+    message.textContent = `¿Estás seguro de que deseas quitar al empleado "${empName}" de esta zona?`;
+    buttonText.textContent = 'Quitar';
+
+    confirmBtn.className = 'btn btn-danger';
+
+    pendingAction = {
+        type: 'removeEmpleado',
+        empId: empId
+    };
+
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+async function addMultipleEmpleadosToZone(empIds) {
+    const cycleFilter = document.getElementById('cycleFilter');
+    const cicloId = cycleFilter ? cycleFilter.value : null;
+
+    if (!cicloId) {
+        showToast('Debes seleccionar un ciclo primero', 'warning');
+        return;
+    }
+
+    closeAddEmpleadoModal();
+
     try {
-        console.log('🔄 Refrescando detalles de la zona:', zoneId);
-        
-        const cicloFilter = document.getElementById('cycleFilter');
-        const selectedCycle = cicloFilter ? cicloFilter.value : '';
-        
-        // Obtener las asignaciones según el filtro de ciclo
-        const empleadosUrl = `/zonas/${zoneId}/empleados${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-        const geosegmentosUrl = `/zonas/${zoneId}/geosegmentos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-        const ubigeosUrl = `/zonas/${zoneId}/ubigeos${selectedCycle ? `?ciclo=${selectedCycle}` : ''}`;
-        
-        const [empleadosRes, geosegmentosRes, ubigeosRes] = await Promise.all([
-            fetch(empleadosUrl),
-            fetch(geosegmentosUrl),
-            fetch(ubigeosUrl)
-        ]);
-        
-        const empleadosData = await empleadosRes.json();
-        const geosegmentosData = await geosegmentosRes.json();
-        const ubigeosData = await ubigeosRes.json();
-        
-        const empleadosCount = empleadosData.data?.length || 0;
-        const geosegmentosCount = geosegmentosData.data?.length || 0;
-        const ubigeosCount = ubigeosData.data?.length || 0;
-        
-        console.log('📊 Nuevos contadores:', { empleadosCount, geosegmentosCount, ubigeosCount });
-        
-        // Actualizar los contadores en las pestañas del modal
-        const empleadosTab = document.getElementById('empleadosTab');
-        const geosegmentosTab = document.getElementById('geosegmentosTab');
-        const ubigeosTab = document.getElementById('ubigeosTab');
-        
-        if (empleadosTab) {
-            empleadosTab.innerHTML = `
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                </svg>
-                Empleados (${empleadosCount})
-            `;
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const empId of empIds) {
+            const response = await fetch(`/zonas/${currentZoneId}/empleados`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    idEmpleado: empId,
+                    idCiclo: cicloId
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
         }
-        
-        if (geosegmentosTab) {
-            geosegmentosTab.innerHTML = `
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
-                </svg>
-                Geosegmentos (${geosegmentosCount})
-            `;
+
+        if (successCount > 0) {
+            showToast(`${successCount} empleado${successCount !== 1 ? 's' : ''} agregado${successCount !== 1 ? 's' : ''} exitosamente`, 'success');
+            viewZoneDetails(currentZoneId);
         }
-        
-        if (ubigeosTab) {
-            ubigeosTab.innerHTML = `
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
-                </svg>
-                Ubigeos (${ubigeosCount})
-            `;
+
+        if (errorCount > 0) {
+            showToast(`${errorCount} empleado${errorCount !== 1 ? 's' : ''} no pudo${errorCount !== 1 ? 'ieron' : ''} ser agregado${errorCount !== 1 ? 's' : ''}`, 'warning');
         }
-        
-        // Actualizar los contadores en la tabla principal
-        const empleadosCountElement = document.getElementById(`empleados-count-${zoneId}`);
-        const geosegmentosCountElement = document.getElementById(`geosegmentos-count-${zoneId}`);
-        const ubigeosCountElement = document.getElementById(`ubigeos-count-${zoneId}`);
-        
-        if (empleadosCountElement) {
-            empleadosCountElement.textContent = empleadosCount;
-            console.log('✅ Tabla: Actualizado empleados a', empleadosCount);
-        }
-        
-        if (geosegmentosCountElement) {
-            geosegmentosCountElement.textContent = geosegmentosCount;
-            console.log('✅ Tabla: Actualizado geosegmentos a', geosegmentosCount);
-        }
-        
-        if (ubigeosCountElement) {
-            ubigeosCountElement.textContent = ubigeosCount;
-            console.log('✅ Tabla: Actualizado ubigeos a', ubigeosCount);
-        }
-        
-                // Actualizar el contenido de la pestaña activa en el modal
-                const activeTab = document.querySelector('.tab-button.active');
-                if (activeTab) {
-                    const tabContent = document.getElementById('tabContent');
-                    if (tabContent) {
-                        const tabId = activeTab.id;
-                        
-                        if (tabId === 'empleadosTab') {
-                            tabContent.innerHTML = renderEmpleadosTab(empleadosData.data || []);
-                            console.log('🔄 Contenido actualizado: empleados');
-                        } else if (tabId === 'geosegmentosTab') {
-                            tabContent.innerHTML = renderGeosegmentosTab(geosegmentosData.data || {});
-                            console.log('🔄 Contenido actualizado: geosegmentos');
-                        } else if (tabId === 'ubigeosTab') {
-                            tabContent.innerHTML = renderUbigeosTab(ubigeosData.data || []);
-                            console.log('🔄 Contenido actualizado: ubigeos');
-                        }
-                    }
-                }
-        
-        console.log('✅ Actualización completa finalizada');
     } catch (error) {
-        console.error('❌ Error al refrescar detalles:', error);
+        console.error('Error:', error);
+        showToast('Error al agregar empleados', 'error');
+    }
+}
+
+async function removeEmpleadoFromZone(empId) {
+    try {
+        const response = await fetch(`/zonas/empleados/${empId}/deactivate`, {
+            method: 'PUT',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(result.message, 'success');
+            viewZoneDetails(currentZoneId);
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error al quitar el empleado', 'error');
     }
 }
 
 // ==========================================
-// 7. GLOBAL SCOPE (Para Vite)
+// 7. FILTERS
 // ==========================================
 
-// Exponer funciones al objeto window para que sean accesibles desde HTML
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.closeDetailsModal = closeDetailsModal;
-window.closeConfirmModal = closeConfirmModal;
-window.saveZone = saveZone;
-window.editZone = editZone;
-window.showConfirmModal = showConfirmModal;
-window.executeConfirmAction = executeConfirmAction;
-window.confirmDeactivate = confirmDeactivate;
-window.deactivateZone = deactivateZone;
-window.viewZoneDetails = viewZoneDetails;
-window.searchZones = searchZones;
-window.filterByCycle = filterByCycle;
-window.clearFilters = clearFilters;
-window.switchTab = switchTab;
-window.showToast = showToast;
-window.removeGeosegmentFromZone = removeGeosegmentFromZone;
-window.restoreGeosegmentFromZone = restoreGeosegmentFromZone;
-window.refreshZoneDetails = refreshZoneDetails;
-window.updateKanbanInRealTime = updateKanbanInRealTime;
-window.allowDrop = allowDrop;
-window.drag = drag;
-window.drop = drop;
-window.searchEmpleados = searchEmpleados;
-window.selectEmpleado = selectEmpleado;
-window.addEmpleadoToZone = addEmpleadoToZone;
-window.removeEmployeeFromZone = removeEmployeeFromZone;
-window.executeRemoveEmployee = executeRemoveEmployee;
-window.searchGeosegments = searchGeosegments;
-window.selectGeosegment = selectGeosegment;
-window.addGeosegmentToZone = addGeosegmentToZone;
+window.filterByCycle = function () {
+    const select = document.getElementById('cycleFilter');
+    const selectedOption = select.options[select.selectedIndex];
+    const cycleId = select.value;
+    const esCerrado = selectedOption.getAttribute('data-cerrado') === 'true';
+
+    // Obtener el ciclo actual de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentCycleId = urlParams.get('ciclo') || '';
+
+    // Si el ciclo seleccionado es el mismo que el actual, no hacer nada
+    if (cycleId === currentCycleId) {
+        return;
+    }
+
+    cicloSeleccionado = cycleId;
+
+    // Mostrar/ocultar advertencia
+    const warning = document.getElementById('cycleClosedWarning');
+    if (warning) {
+        warning.style.display = esCerrado && cycleId ? 'flex' : 'none';
+    }
+
+    // Recargar con el filtro
+    if (cycleId) {
+        window.location.href = `/zonas?ciclo=${cycleId}`;
+    } else {
+        window.location.href = '/zonas';
+    }
+}
+
+window.searchZones = function () {
+    clearTimeout(searchTimeout);
+
+    searchTimeout = setTimeout(() => {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#zonesTableBody tr');
+
+        rows.forEach(row => {
+            const zoneName = row.getAttribute('data-zone-name');
+            if (zoneName) {
+                const matches = zoneName.toLowerCase().includes(searchTerm);
+                row.style.display = matches ? '' : 'none';
+            }
+        });
+    }, 300);
+}
 
 // ==========================================
-// 8. INITIALIZATION
+// 8. UTILITY FUNCTIONS
+// ==========================================
+
+function isCicloCerrado() {
+    const select = document.getElementById('cycleFilter');
+    if (!select || !select.value) return false;
+
+    const selectedOption = select.options[select.selectedIndex];
+    return selectedOption.getAttribute('data-cerrado') === 'true';
+}
+
+// ==========================================
+// 9. INITIALIZATION
 // ==========================================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Módulo de Zonas cargado correctamente');
-    
-    // Cerrar modales con ESC
+
+    // Cerrar modales con ESC - Solo cierra la modal más arriba
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal();
-            closeDetailsModal();
-            closeConfirmModal();
+            // Verificar qué modales están abiertas y cerrar la de mayor prioridad
+            const confirmModal = document.getElementById('confirmModal');
+            const addEmpleadoModal = document.getElementById('addEmpleadoModal');
+            const addGeosegmentoModal = document.getElementById('addGeosegmentoModal');
+            const detailsModal = document.getElementById('detailsModal');
+            const zoneModal = document.getElementById('zoneModal');
+
+            // Cerrar en orden de prioridad (z-index)
+            if (confirmModal && confirmModal.classList.contains('active')) {
+                closeConfirmModal();
+            } else if (addEmpleadoModal && addEmpleadoModal.classList.contains('active')) {
+                closeAddEmpleadoModal();
+            } else if (addGeosegmentoModal && addGeosegmentoModal.classList.contains('active')) {
+                closeAddGeosegmentoModal();
+            } else if (detailsModal && detailsModal.classList.contains('active')) {
+                closeDetailsModal();
+            } else if (zoneModal && zoneModal.classList.contains('active')) {
+                closeModal();
+            }
         }
     });
-    
-    // Inicializar mensaje de advertencia si hay un ciclo cerrado seleccionado
-    if (window.cicloSeleccionado && window.isCicloCerrado && window.isCicloCerrado()) {
-        const warningElement = document.getElementById('cycleClosedWarning');
-        if (warningElement) {
-            warningElement.style.display = 'block';
+
+    // Cerrar modales al hacer clic fuera
+    const modals = ['zoneModal', 'detailsModal', 'confirmModal', 'addGeosegmentoModal', 'addEmpleadoModal'];
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    if (modalId === 'zoneModal') closeModal();
+                    else if (modalId === 'detailsModal') closeDetailsModal();
+                    else if (modalId === 'confirmModal') closeConfirmModal();
+                    else if (modalId === 'addGeosegmentoModal') closeAddGeosegmentoModal();
+                    else if (modalId === 'addEmpleadoModal') closeAddEmpleadoModal();
+                }
+            });
+        }
+    });
+
+    // Establecer el ciclo seleccionado desde la URL o el valor por defecto del servidor
+    const cycleFilter = document.getElementById('cycleFilter');
+    if (cycleFilter) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const cicloFromUrl = urlParams.get('ciclo');
+
+        if (cicloFromUrl) {
+            cycleFilter.value = cicloFromUrl;
+            cicloSeleccionado = cicloFromUrl;
+        } else if (cycleFilter.value) {
+            // Si no hay ciclo en URL pero el select tiene un valor (seleccionado por el servidor)
+            cicloSeleccionado = cycleFilter.value;
+        }
+
+        // Verificar si hay un ciclo cerrado seleccionado
+        if (cycleFilter.value) {
+            const selectedOption = cycleFilter.options[cycleFilter.selectedIndex];
+            const esCerrado = selectedOption.getAttribute('data-cerrado') === 'true';
+
+            const warning = document.getElementById('cycleClosedWarning');
+            if (warning && esCerrado) {
+                warning.style.display = 'flex';
+            }
         }
     }
 });
 
+
+// ==========================================
+// MODAL AGREGAR GEOSEGMENTOS
+// ==========================================
+
+let selectedGeosegmentos = [];
+
+window.openAddGeosegmentoModal = function () {
+    const modal = document.getElementById('addGeosegmentoModal');
+    const searchInput = document.getElementById('geoSearchInput');
+
+    selectedGeosegmentos = [];
+    searchInput.value = '';
+    loadGeosegmentos();
+
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+window.closeAddGeosegmentoModal = function () {
+    const modal = document.getElementById('addGeosegmentoModal');
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+        selectedGeosegmentos = [];
+    }, 300);
+}
+
+window.searchGeosegmentos = function () {
+    loadGeosegmentos();
+}
+
+function loadGeosegmentos() {
+    const searchTerm = document.getElementById('geoSearchInput').value.toLowerCase();
+    const container = document.getElementById('geoGrid');
+
+    if (!window.geosegmentosData || window.geosegmentosData.length === 0) {
+        container.innerHTML = `
+            <div class="geo-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 8v4M12 16h.01"></path>
+                </svg>
+                <p>No hay geosegmentos disponibles</p>
+            </div>
+        `;
+        return;
+    }
+
+    const filtered = searchTerm
+        ? window.geosegmentosData.filter(geo => geo.geosegmento.toLowerCase().includes(searchTerm))
+        : window.geosegmentosData;
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="geo-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <p>No se encontraron geosegmentos</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="geo-cards-grid">
+            ${filtered.map(geo => `
+                <div class="geo-card ${selectedGeosegmentos.includes(geo.idGeosegmento) ? 'selected' : ''}" 
+                     onclick="toggleGeosegmento(${geo.idGeosegmento})">
+                    <div class="geo-card-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                    </div>
+                    <span class="geo-card-text">${geo.geosegmento}</span>
+                    <div class="geo-card-check">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+window.toggleGeosegmento = function (geoId) {
+    const index = selectedGeosegmentos.indexOf(geoId);
+
+    if (index > -1) {
+        selectedGeosegmentos.splice(index, 1);
+    } else {
+        selectedGeosegmentos.push(geoId);
+    }
+
+    loadGeosegmentos();
+}
+
+window.confirmSaveGeosegmentos = function () {
+    if (selectedGeosegmentos.length === 0) {
+        showToast('Debes seleccionar al menos un geosegmento', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('confirmModal');
+    const message = document.getElementById('confirmMessage');
+    const title = document.getElementById('confirmTitle');
+    const buttonText = document.getElementById('confirmButtonText');
+    const confirmBtn = document.getElementById('confirmButton');
+
+    title.textContent = 'Confirmar Agregar';
+    message.textContent = `¿Deseas agregar ${selectedGeosegmentos.length} geosegmento${selectedGeosegmentos.length !== 1 ? 's' : ''} a esta zona?`;
+    buttonText.textContent = 'Agregar';
+
+    confirmBtn.className = 'btn btn-primary';
+
+    pendingAction = {
+        type: 'addGeosegmentos',
+        geoIds: selectedGeosegmentos
+    };
+
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+window.confirmRemoveGeosegmento = function (geoId, geoName) {
+    const modal = document.getElementById('confirmModal');
+    const message = document.getElementById('confirmMessage');
+    const title = document.getElementById('confirmTitle');
+    const buttonText = document.getElementById('confirmButtonText');
+    const confirmBtn = document.getElementById('confirmButton');
+
+    title.textContent = 'Confirmar Quitar';
+    message.textContent = `¿Estás seguro de que deseas quitar el geosegmento "${geoName}" de esta zona?`;
+    buttonText.textContent = 'Quitar';
+
+    confirmBtn.className = 'btn btn-danger';
+
+    pendingAction = {
+        type: 'removeGeosegmento',
+        geoId: geoId
+    };
+
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+
+async function addMultipleGeosegmentosToZone(geoIds) {
+    const cycleFilter = document.getElementById('cycleFilter');
+    const cicloId = cycleFilter ? cycleFilter.value : null;
+
+    if (!cicloId) {
+        showToast('Debes seleccionar un ciclo primero', 'warning');
+        return;
+    }
+
+    closeAddGeosegmentoModal();
+
+    try {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const geoId of geoIds) {
+            const response = await fetch(`/zonas/${currentZoneId}/geosegmentos`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    idGeosegmento: geoId,
+                    idCiclo: cicloId
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        }
+
+        if (successCount > 0) {
+            showToast(`${successCount} geosegmento${successCount !== 1 ? 's' : ''} agregado${successCount !== 1 ? 's' : ''} exitosamente`, 'success');
+            viewZoneDetails(currentZoneId);
+        }
+
+        if (errorCount > 0) {
+            showToast(`${errorCount} geosegmento${errorCount !== 1 ? 's' : ''} no pudo${errorCount !== 1 ? 'ieron' : ''} ser agregado${errorCount !== 1 ? 's' : ''}`, 'warning');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error al agregar los geosegmentos', 'error');
+    }
+}

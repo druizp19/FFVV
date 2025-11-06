@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\RegistraHistorial;
 
 class Producto extends Model
 {
+    use RegistraHistorial;
     /**
      * La tabla asociada al modelo.
      *
@@ -274,6 +276,178 @@ class Producto extends Model
         }
 
         return $query->exists();
+    }
+
+    /**
+     * Obtiene una descripción legible del producto para el historial.
+     *
+     * @return string
+     */
+    protected function getDescripcionHistorial(): string
+    {
+        $descripcion = "ID: {$this->idProducto}";
+        
+        // Agregar información de marca y mercado si está disponible
+        if ($this->relationLoaded('marcaMkt')) {
+            $marca = $this->marcaMkt?->marca?->marca ?? null;
+            $mercado = $this->marcaMkt?->mercado?->mercado ?? null;
+            
+            if ($marca && $mercado) {
+                $descripcion = "{$marca} - {$mercado}";
+            } elseif ($marca) {
+                $descripcion = $marca;
+            }
+        }
+        
+        return $descripcion;
+    }
+
+    /**
+     * Convierte los datos del modelo a formato legible para el historial.
+     * Reemplaza IDs por sus valores descriptivos.
+     *
+     * @param array $datos
+     * @return array
+     */
+    protected function convertirDatosALegibles(array $datos): array
+    {
+        $datosLegibles = [];
+        
+        foreach ($datos as $campo => $valor) {
+            $nombreCampo = $this->getNombreCampoLegible($campo);
+            $valorLegible = $this->getValorLegible($campo, $valor);
+            
+            $datosLegibles[$nombreCampo] = $valorLegible;
+        }
+        
+        return $datosLegibles;
+    }
+
+    /**
+     * Obtiene el nombre legible de un campo.
+     *
+     * @param string $campo
+     * @return string
+     */
+    protected function getNombreCampoLegible(string $campo): string
+    {
+        $nombres = [
+            'idCiclo' => 'Ciclo',
+            'idFranqLinea' => 'Franquicia-Línea',
+            'idMarcaMkt' => 'Marca-Mercado',
+            'idCore' => 'Core',
+            'idCuota' => 'Cuota',
+            'idPromocion' => 'Promoción',
+            'idAlcance' => 'Alcance',
+            'idEstado' => 'Estado',
+            'fechaModificacion' => 'Fecha de Modificación',
+            'fechaCierre' => 'Fecha de Cierre',
+        ];
+        
+        return $nombres[$campo] ?? $campo;
+    }
+
+    /**
+     * Obtiene el valor legible de un campo.
+     *
+     * @param string $campo
+     * @param mixed $valor
+     * @return string
+     */
+    protected function getValorLegible(string $campo, $valor): string
+    {
+        if (is_null($valor)) {
+            return 'Sin asignar';
+        }
+        
+        // Mapeo de campos a sus relaciones y atributos descriptivos
+        $mapeo = [
+            'idCiclo' => ['relacion' => 'ciclo', 'atributo' => 'ciclo'],
+            'idCore' => ['relacion' => 'core', 'atributo' => 'core'],
+            'idCuota' => ['relacion' => 'cuota', 'atributo' => 'cuota'],
+            'idPromocion' => ['relacion' => 'promocion', 'atributo' => 'promocion'],
+            'idAlcance' => ['relacion' => 'alcance', 'atributo' => 'alcance'],
+            'idEstado' => ['relacion' => 'estado', 'atributo' => 'estado'],
+        ];
+        
+        // Si el campo tiene un mapeo, intentar obtener el valor de la relación
+        if (isset($mapeo[$campo])) {
+            $relacionNombre = $mapeo[$campo]['relacion'];
+            $atributo = $mapeo[$campo]['atributo'];
+            
+            // Si la relación está cargada, usar su valor
+            if ($this->relationLoaded($relacionNombre) && $this->$relacionNombre) {
+                return $this->$relacionNombre->$atributo ?? $valor;
+            }
+            
+            // Si no está cargada, intentar cargarla
+            try {
+                $modelo = $this->$relacionNombre;
+                if ($modelo) {
+                    return $modelo->$atributo ?? $valor;
+                }
+            } catch (\Exception $e) {
+                // Si falla, devolver el valor original
+            }
+        }
+        
+        // Para fechas, formatear
+        if (in_array($campo, ['fechaModificacion', 'fechaCierre']) && $valor) {
+            try {
+                return \Carbon\Carbon::parse($valor)->format('d/m/Y');
+            } catch (\Exception $e) {
+                return $valor;
+            }
+        }
+        
+        return $valor;
+    }
+
+    /**
+     * Sobrescribe el método para obtener datos legibles en el historial.
+     *
+     * @return array
+     */
+    protected function getDatosParaHistorial(): array
+    {
+        // Excluir campos sensibles o innecesarios
+        $excluir = ['password', 'remember_token', 'created_at', 'updated_at'];
+        
+        $datos = collect($this->getAttributes())
+            ->except($excluir)
+            ->toArray();
+            
+        return $this->convertirDatosALegibles($datos);
+    }
+
+    /**
+     * Sobrescribe el método para obtener cambios legibles en el historial.
+     *
+     * @return array
+     */
+    protected function getCambiosRelevantes(): array
+    {
+        $cambios = $this->getDirty();
+        
+        if (empty($cambios)) {
+            return [];
+        }
+        
+        $anterior = [];
+        $nuevo = [];
+        
+        foreach ($cambios as $campo => $valorNuevo) {
+            $nombreCampo = $this->getNombreCampoLegible($campo);
+            $valorAnterior = $this->getOriginal($campo);
+            
+            $anterior[$nombreCampo] = $this->getValorLegible($campo, $valorAnterior);
+            $nuevo[$nombreCampo] = $this->getValorLegible($campo, $valorNuevo);
+        }
+        
+        return [
+            'anterior' => $anterior,
+            'nuevo' => $nuevo,
+        ];
     }
 
     /**

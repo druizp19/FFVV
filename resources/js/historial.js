@@ -21,6 +21,7 @@ async function verDetalles(idHistorial) {
     const detallesContent = document.getElementById('detallesContent');
     
     // Mostrar modal con spinner
+    modal.classList.remove('closing');
     modal.classList.add('active');
     
     // Bloquear sidebar en modo responsive
@@ -108,25 +109,95 @@ function renderDetalles(historial) {
         </div>
     `;
     
-    // Datos anteriores
-    if (historial.datosAnteriores && Object.keys(historial.datosAnteriores).length > 0) {
+    // Cambios realizados (comparación lado a lado)
+    if (historial.datosAnteriores && historial.datosNuevos && 
+        Object.keys(historial.datosAnteriores).length > 0 && 
+        Object.keys(historial.datosNuevos).length > 0) {
+        
         html += `
             <div class="detalle-section">
-                <h4 class="detalle-title">Datos Anteriores</h4>
-                <div class="detalle-json">
-                    <pre>${JSON.stringify(historial.datosAnteriores, null, 2)}</pre>
+                <h4 class="detalle-title">Cambios Realizados</h4>
+                <div class="cambios-grid">
+        `;
+        
+        // Obtener todos los campos únicos
+        const campos = new Set([
+            ...Object.keys(historial.datosAnteriores),
+            ...Object.keys(historial.datosNuevos)
+        ]);
+        
+        campos.forEach(campo => {
+            const valorAnterior = historial.datosAnteriores[campo] ?? 'Sin asignar';
+            const valorNuevo = historial.datosNuevos[campo] ?? 'Sin asignar';
+            
+            // Solo mostrar si hay cambio
+            if (valorAnterior !== valorNuevo) {
+                html += `
+                    <div class="cambio-item">
+                        <div class="cambio-campo">${campo}</div>
+                        <div class="cambio-valores">
+                            <div class="cambio-anterior">
+                                <span class="cambio-label">Anterior:</span>
+                                <span class="cambio-value">${valorAnterior}</span>
+                            </div>
+                            <div class="cambio-arrow">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                                </svg>
+                            </div>
+                            <div class="cambio-nuevo">
+                                <span class="cambio-label">Nuevo:</span>
+                                <span class="cambio-value">${valorNuevo}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        html += `
                 </div>
             </div>
         `;
-    }
-    
-    // Datos nuevos
-    if (historial.datosNuevos && Object.keys(historial.datosNuevos).length > 0) {
+    } else if (historial.datosAnteriores && Object.keys(historial.datosAnteriores).length > 0) {
+        // Solo datos anteriores (eliminación)
         html += `
             <div class="detalle-section">
-                <h4 class="detalle-title">Datos Nuevos</h4>
-                <div class="detalle-json">
-                    <pre>${JSON.stringify(historial.datosNuevos, null, 2)}</pre>
+                <h4 class="detalle-title">Datos Eliminados</h4>
+                <div class="datos-grid">
+        `;
+        
+        Object.entries(historial.datosAnteriores).forEach(([campo, valor]) => {
+            html += `
+                <div class="dato-item">
+                    <span class="dato-label">${campo}:</span>
+                    <span class="dato-value">${valor ?? 'Sin asignar'}</span>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    } else if (historial.datosNuevos && Object.keys(historial.datosNuevos).length > 0) {
+        // Solo datos nuevos (creación)
+        html += `
+            <div class="detalle-section">
+                <h4 class="detalle-title">Datos Creados</h4>
+                <div class="datos-grid">
+        `;
+        
+        Object.entries(historial.datosNuevos).forEach(([campo, valor]) => {
+            html += `
+                <div class="dato-item">
+                    <span class="dato-label">${campo}:</span>
+                    <span class="dato-value">${valor ?? 'Sin asignar'}</span>
+                </div>
+            `;
+        });
+        
+        html += `
                 </div>
             </div>
         `;
@@ -156,8 +227,12 @@ function formatFecha(fecha) {
  */
 function cerrarDetalles() {
     const modal = document.getElementById('detallesModal');
-    modal.classList.remove('active');
-    currentHistorialId = null;
+    modal.classList.add('closing');
+    
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+        currentHistorialId = null;
+    }, 300);
     
     // Desbloquear sidebar
     if (window.unblockSidebar) {
@@ -322,6 +397,125 @@ document.addEventListener('DOMContentLoaded', () => {
             font-size: 0.875rem;
             color: var(--gray-500);
             margin: 0;
+        }
+        
+        /* Estilos para cambios lado a lado */
+        .cambios-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .cambio-item {
+            background: var(--bg-primary);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            border: 1px solid var(--border-primary);
+        }
+        
+        .cambio-campo {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+        
+        .cambio-valores {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .cambio-anterior,
+        .cambio-nuevo {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .cambio-label {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .cambio-anterior .cambio-value {
+            padding: 0.5rem 0.75rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 0.375rem;
+            color: #dc2626;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .cambio-nuevo .cambio-value {
+            padding: 0.5rem 0.75rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 0.375rem;
+            color: #059669;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .cambio-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-primary);
+        }
+        
+        /* Estilos para datos simples */
+        .datos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 0.75rem;
+        }
+        
+        .dato-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0.75rem;
+            background: var(--bg-primary);
+            border-radius: 0.375rem;
+            border: 1px solid var(--border-primary);
+        }
+        
+        .dato-label {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .dato-value {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .cambio-valores {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            
+            .cambio-arrow {
+                transform: rotate(90deg);
+            }
+            
+            .datos-grid {
+                grid-template-columns: 1fr;
+            }
         }
     `;
     document.head.appendChild(style);

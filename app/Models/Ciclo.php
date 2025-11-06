@@ -89,11 +89,11 @@ class Ciclo extends Model
     }
 
     /**
-     * Obtiene el estado del ciclo (Abierto/Cerrado).
+     * Obtiene el estado calculado del ciclo (Abierto/Cerrado) basado en fechas.
      * 
      * @return string
      */
-    public function getEstadoAttribute(): string
+    public function getEstadoCalculadoAttribute(): string
     {
         $fechaActual = Carbon::now();
         $fechaInicio = Carbon::parse($this->fechaInicio);

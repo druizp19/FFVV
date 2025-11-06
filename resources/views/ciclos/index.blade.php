@@ -4,56 +4,115 @@
 
 @section('content')
 <div class="page-header">
-    <h1 class="page-title">Ciclos Comerciales</h1>
-    <p class="page-subtitle">Gestiona los ciclos comerciales y su configuración</p>
+    <div class="header-content">
+        <div class="header-text">
+            <h1 class="page-title">Ciclos Comerciales</h1>
+            <p class="page-subtitle">Gestiona los ciclos comerciales y su configuración</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()" id="btnNuevoCiclo" {{ $hayCicloAbierto ? 'disabled' : '' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Nuevo Ciclo</span>
+        </button>
+    </div>
 </div>
 
-<div class="actions-bar">
-    <button class="btn btn-primary" onclick="openModal()">
-        <span class="btn-icon">+</span>
-        Nuevo Ciclo
-    </button>
-</div>
+@if($hayCicloAbierto)
+    <div class="alert alert-warning" style="margin-bottom: 24px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span>Hay un ciclo abierto actualmente. No se pueden crear o copiar ciclos hasta que se cierre.</span>
+    </div>
+@endif
 
-<div class="ciclos-grid">
+<div class="ciclos-container">
     @forelse($ciclos as $ciclo)
         <div class="ciclo-card">
-            <div class="ciclo-header">
-                <div class="ciclo-info">
-                    <h3 class="ciclo-codigo">{{ $ciclo->ciclo ?? $ciclo->codigo }}</h3>
-                    <p class="ciclo-fechas">
-                        {{ \Carbon\Carbon::parse($ciclo->fechaInicio)->format('d/m/Y') }} - 
-                        {{ \Carbon\Carbon::parse($ciclo->fechaFin)->format('d/m/Y') }}
-                    </p>
-                    <p class="ciclo-dias-habiles">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;">
+            <div class="ciclo-status">
+                @php
+                    $estadoCalculado = $ciclo->estado_calculado ?? 'Cerrado';
+                @endphp
+                <span class="status-badge status-{{ $estadoCalculado === 'Abierto' ? 'active' : 'closed' }}">
+                    <span class="status-dot"></span>
+                    {{ $estadoCalculado }}
+                </span>
+            </div>
+            
+            <div class="ciclo-content">
+                <h3 class="ciclo-title">{{ $ciclo->ciclo ?? $ciclo->codigo }}</h3>
+                
+                <div class="ciclo-details">
+                    <div class="detail-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                             <line x1="16" y1="2" x2="16" y2="6"></line>
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
-                        {{ $ciclo->diasHabiles ?? 0 }} días hábiles
-                    </p>
+                        <span>{{ \Carbon\Carbon::parse($ciclo->fechaInicio)->format('d/m/Y') }}</span>
+                    </div>
+                    <div class="detail-separator">→</div>
+                    <div class="detail-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span>{{ \Carbon\Carbon::parse($ciclo->fechaFin)->format('d/m/Y') }}</span>
+                    </div>
                 </div>
-                <span class="badge badge-{{ $ciclo->estado === 'Abierto' ? 'success' : 'default' }}">
-                    {{ $ciclo->estado }}
-                </span>
+
+                <div class="ciclo-meta">
+                    <div class="meta-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>{{ $ciclo->diasHabiles ?? 0 }} días hábiles</span>
+                    </div>
+                </div>
             </div>
 
             <div class="ciclo-actions">
-                <button class="btn-action" onclick="editarCiclo({{ $ciclo->idCiclo }})">
-                    <span>✏️</span>
-                    Editar
+                <button class="action-btn action-edit" onclick="editarCiclo({{ $ciclo->idCiclo }})" title="Editar ciclo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span>Editar</span>
                 </button>
-                <button class="btn-action" onclick="copiarCiclo({{ $ciclo->idCiclo }})">
-                    <span>📋</span>
-                    Copiar
+                <button class="action-btn action-copy" onclick="copiarCiclo({{ $ciclo->idCiclo }})" title="Copiar ciclo" {{ $hayCicloAbierto ? 'disabled' : '' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span>Copiar</span>
                 </button>
             </div>
         </div>
     @empty
         <div class="empty-state">
-            <p>No hay ciclos registrados</p>
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <h3>No hay ciclos registrados</h3>
+            <p>Comienza creando tu primer ciclo comercial</p>
+            <button class="btn btn-primary" onclick="openModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Crear Primer Ciclo</span>
+            </button>
         </div>
     @endforelse
 </div>
@@ -184,6 +243,10 @@
 
 <!-- Contenedor de Toasts -->
 <div id="toast-container" class="toast-container"></div>
+
+<script>
+    window.hayCicloAbierto = {{ $hayCicloAbierto ? 'true' : 'false' }};
+</script>
 @endsection
 
 @push('styles')

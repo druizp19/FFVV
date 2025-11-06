@@ -137,7 +137,15 @@ window.updateDateDisplay = function(inputId, value) {
  * Abre el modal para crear un nuevo ciclo
  */
 window.openModal = function() {
-    document.getElementById('cicloModal').classList.add('active');
+    // Verificar si hay un ciclo abierto
+    if (window.hayCicloAbierto) {
+        showToast('warning', 'No se puede crear un nuevo ciclo mientras haya un ciclo abierto.', 'Ciclo Abierto');
+        return;
+    }
+
+    const modal = document.getElementById('cicloModal');
+    modal.classList.remove('closing');
+    modal.classList.add('active');
     document.getElementById('modalTitle').textContent = 'Nuevo Ciclo';
     document.getElementById('cicloForm').reset();
     document.getElementById('cicloId').value = '';
@@ -153,10 +161,15 @@ window.openModal = function() {
 }
 
 /**
- * Cierra el modal
+ * Cierra el modal con animación
  */
 window.closeModal = function() {
-    document.getElementById('cicloModal').classList.remove('active');
+    const modal = document.getElementById('cicloModal');
+    modal.classList.add('closing');
+    
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+    }, 300);
 }
 
 /**
@@ -340,7 +353,9 @@ window.editarCiclo = async function(id) {
             // Ocultar el checkbox de copiar datos al editar
             document.getElementById('copiarDatosContainer').style.display = 'none';
             
-            document.getElementById('cicloModal').classList.add('active');
+            const modal = document.getElementById('cicloModal');
+            modal.classList.remove('closing');
+            modal.classList.add('active');
         } else {
             showToast('error', 'No se pudo cargar el ciclo.', 'Error');
         }
@@ -355,6 +370,12 @@ window.editarCiclo = async function(id) {
  * @param {number} id - ID del ciclo a copiar
  */
 window.copiarCiclo = async function(id) {
+    // Verificar si hay un ciclo abierto
+    if (window.hayCicloAbierto) {
+        showToast('warning', 'No se puede copiar un ciclo mientras haya un ciclo abierto.', 'Ciclo Abierto');
+        return;
+    }
+
     // Obtener el ciclo original
     try {
         const response = await fetch(`/ciclos/${id}`, {
@@ -377,7 +398,9 @@ window.copiarCiclo = async function(id) {
             document.getElementById('fechaInicio_real').value = '';
             document.getElementById('fechaFin_real').value = '';
             
-            document.getElementById('cicloModal').classList.add('active');
+            const modal = document.getElementById('cicloModal');
+            modal.classList.remove('closing');
+            modal.classList.add('active');
             showToast('info', 'Asigna las fechas para el nuevo ciclo.', 'Copiar Ciclo');
         } else {
             showToast('error', 'No se pudo cargar el ciclo para copiar.', 'Error');

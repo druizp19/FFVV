@@ -93,6 +93,7 @@ class ProductoRepository
      */
     public function update(int $id, array $data): bool
     {
+        // Cargar el producto con todas sus relaciones para el historial
         $producto = $this->findById($id);
         
         if (!$producto) {

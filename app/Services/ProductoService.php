@@ -68,6 +68,16 @@ class ProductoService
 
     public function actualizarProducto(int $id, array $data): array
     {
+        // Obtener el producto actual
+        $producto = $this->productoRepository->findById($id);
+        
+        if (!$producto) {
+            return [
+                'success' => false,
+                'message' => 'Producto no encontrado.'
+            ];
+        }
+
         // Validar fechas si están presentes
         if (isset($data['fechaModificacion']) && isset($data['fechaCierre'])) {
             $fechaModificacion = Carbon::parse($data['fechaModificacion']);
@@ -81,9 +91,20 @@ class ProductoService
             }
         }
 
+        // Combinar datos actuales con los nuevos para validación de duplicados
+        $datosCompletos = array_merge([
+            'idCiclo' => $producto->idCiclo,
+            'idFranqLinea' => $producto->idFranqLinea,
+            'idMarcaMkt' => $producto->idMarcaMkt,
+            'idCore' => $producto->idCore,
+            'idCuota' => $producto->idCuota,
+            'idPromocion' => $producto->idPromocion,
+            'idAlcance' => $producto->idAlcance,
+        ], $data);
+
         // Validar duplicados antes de actualizar (excluyendo el producto actual)
-        if ($this->productoRepository->existeDuplicado($data, $id)) {
-            $claveUnica = $this->productoRepository->generarClaveUnica($data);
+        if ($this->productoRepository->existeDuplicado($datosCompletos, $id)) {
+            $claveUnica = $this->productoRepository->generarClaveUnica($datosCompletos);
             return [
                 'success' => false,
                 'message' => "Ya existe otro producto con la combinación: {$claveUnica}. No se pueden crear productos duplicados."
