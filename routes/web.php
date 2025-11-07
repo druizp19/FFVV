@@ -7,10 +7,25 @@ use App\Http\Controllers\ZonaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\HistorialController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Auth\AzureAuthController;
 
-Route::get('/', function () {
-    return redirect()->route('dashboard.index');
+// Rutas de autenticación (solo para invitados)
+Route::middleware(['guest'])->group(function () {
+    Route::get('/login', function () {
+        return view('auth.login');
+    })->name('login');
+
+    Route::get('/auth/azure', [AzureAuthController::class, 'redirectToAzure'])->name('azure.login');
 });
+
+Route::get('/auth/azure/callback', [AzureAuthController::class, 'handleAzureCallback'])->name('azure.callback');
+Route::post('/logout', [AzureAuthController::class, 'logout'])->name('logout');
+
+// Rutas protegidas con autenticación
+Route::middleware(['azure.auth'])->group(function () {
+    Route::get('/', function () {
+        return redirect()->route('dashboard.index');
+    });
 
 // Rutas de Dashboard
 Route::prefix('dashboard')->name('dashboard.')->group(function () {
@@ -88,3 +103,5 @@ Route::prefix('historial')->name('historial.')->group(function () {
     Route::get('/estadisticas/{idCiclo}', [HistorialController::class, 'estadisticas'])->name('estadisticas');
     Route::post('/registrar', [HistorialController::class, 'registrar'])->name('registrar');
 });
+
+}); // Fin del grupo de rutas protegidas
