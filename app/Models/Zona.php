@@ -93,5 +93,21 @@ class Zona extends Model
             $q->where('estado', 'Activo');
         });
     }
+
+    /**
+     * Obtiene el conteo de ubigeos asociados a esta zona a través de sus geosegmentos.
+     *
+     * @return int
+     */
+    public function getUbigeosCountAttribute(): int
+    {
+        return \DB::table('ODS.TAB_UBIGEO')
+            ->whereIn('idGeosegmento', function ($query) {
+                $query->select('idGeosegmento')
+                    ->from('ODS.TAB_ZONAGEO')
+                    ->where('idZona', $this->idZona);
+            })
+            ->count();
+    }
 }
 

@@ -78,7 +78,16 @@ class ZonaController extends Controller
         }
         
         // Query base: SIEMPRE traer todas las zonas
-        $query = \App\Models\Zona::with(['estado']);
+        $query = \App\Models\Zona::with(['estado'])
+            ->withCount([
+                'zonasGeosegmentos as ubigeos_count' => function ($q) use ($cicloSeleccionado) {
+                    $q->join('ODS.TAB_UBIGEO', 'ODS.TAB_ZONAGEO.idGeosegmento', '=', 'ODS.TAB_UBIGEO.idGeosegmento')
+                      ->where('ODS.TAB_ZONAGEO.idEstado', 1);
+                    if ($cicloSeleccionado) {
+                        $q->where('ODS.TAB_ZONAGEO.idCiclo', $cicloSeleccionado);
+                    }
+                }
+            ]);
         
         // Si hay ciclo seleccionado, cargar relaciones filtradas por ciclo
         if ($cicloSeleccionado) {
@@ -952,12 +961,26 @@ class ZonaController extends Controller
                 ];
             });
 
+            // Contar ubigeos asociados a los geosegmentos de esta zona
+            $ubigeosCount = \DB::table('ODS.TAB_UBIGEO')
+                ->whereIn('idGeosegmento', function ($query) use ($id, $cicloId) {
+                    $query->select('idGeosegmento')
+                        ->from('ODS.TAB_ZONAGEO')
+                        ->where('idZona', $id)
+                        ->where('idEstado', 1);
+                    if ($cicloId) {
+                        $query->where('idCiclo', $cicloId);
+                    }
+                })
+                ->count();
+
             return response()->json([
                 'success' => true,
                 'zona' => [
                     'idZona' => $zona->idZona,
                     'zona' => $zona->zona,
-                    'estado' => $zona->estado->estado ?? 'Desconocido',
+                    'estado' => $zona->estado,
+                    'ubigeos_count' => $ubigeosCount,
                     'empleados' => $empleados,
                     'geosegmentos' => $geosegmentos
                 ]

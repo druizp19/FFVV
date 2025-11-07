@@ -142,7 +142,7 @@ window.closeConfirmModal = function () {
     }, 300);
 }
 
-// ==========================================
+// =========================================
 // 4. ZONE CRUD OPERATIONS
 // ==========================================
 
@@ -334,6 +334,24 @@ function buildDetailsHTML(zona) {
 
     return `
         <div class="zone-details-body">
+            <!-- Información Básica -->
+            <div class="zone-basic-info">
+                <div class="info-item">
+                    <span class="info-label">Zona:</span>
+                    <span class="info-value">${zona.zona}</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">Estado:</span>
+                    <span class="info-value">
+                        <span class="status-badge status-${zona.estado?.estado?.toLowerCase() || 'inactivo'}">
+                            <span class="status-dot"></span>
+                            ${zona.estado?.estado || 'Inactivo'}
+                        </span>
+                    </span>
+                </div>
+            </div>
+            
             <div class="zone-details-grid">
                 <!-- Empleados Column -->
                 <div class="zone-detail-column">
@@ -411,7 +429,7 @@ function buildDetailsHTML(zona) {
                                 </div>
                                 <span class="zone-geo-name">${geo.geosegmento}</span>
                                 ${!esCerrado ? `
-                                    <button class="zone-geo-remove" onclick="confirmRemoveGeosegmento(${geo.id}, '${geo.geosegmento}')" title="Quitar">
+                                    <button class="zone-geo-remove" onclick="confirmRemoveGeosegmento(${geo.id}, '${geo.geosegmento.replace(/'/g, "\\'")}')}" title="Quitar">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="18" y1="6" x2="6" y2="18"></line>
                                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -421,6 +439,19 @@ function buildDetailsHTML(zona) {
                             </div>
                         `).join('') : '<div class="zone-empty-state">No hay geosegmentos asignados</div>'}
                     </div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Ubigeos:</span>
+                    <span class="info-value">
+                        <span class="count-badge-inline">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                            <span>${zona.ubigeos_count || 0}</span>
+                        </span>
+                    </span>
                 </div>
             </div>
         </div>

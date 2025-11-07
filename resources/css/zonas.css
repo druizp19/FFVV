@@ -421,7 +421,7 @@
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, #003cff 0%, #001aff 100%);
     color: white;
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
 }
@@ -1536,4 +1536,78 @@
 
 .emp-list-item.selected .emp-list-check svg {
     opacity: 1;
+}
+
+
+/* Ubigeo Text */
+.ubigeo-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-family: 'Courier New', monospace;
+}
+
+
+/* Información Básica en Modal de Detalles */
+.zone-basic-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 20px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-primary);
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.info-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.ubigeo-value {
+    font-family: 'Courier New', monospace;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+.count-badge-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+    color: var(--accent-primary);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.count-badge-inline svg {
+    flex-shrink: 0;
+}
+
+/* Responsive para información básica */
+@media (max-width: 768px) {
+    .zone-basic-info {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 12px;
+    }
 }
