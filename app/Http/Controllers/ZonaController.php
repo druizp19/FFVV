@@ -106,16 +106,16 @@ class ZonaController extends Controller
             ]);
         }
         
-        // Aplicar filtros si existen
+        // Aplicar búsqueda global si existe
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where('zona', 'like', "%{$search}%");
         }
         
-        // Obtener zonas con paginación
+        // Obtener zonas con paginación y mantener parámetros
         $zonas = $query->orderBy('idZona', 'desc')
             ->paginate(10)
-            ->appends($request->except('page'));
+            ->appends($request->all());
         
         // Agregar el conteo de ubigeos manualmente para cada zona
         foreach ($zonas as $zona) {

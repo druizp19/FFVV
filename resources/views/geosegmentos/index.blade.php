@@ -10,7 +10,22 @@
             <h1 class="page-title">Gestión de Geosegmentos</h1>
             <p class="page-subtitle">Administra los geosegmentos y sus ubigeos asignados</p>
         </div>
-        <button class="btn btn-primary" onclick="openCreateGeosegmentoModal()">
+        @php
+            // Verificar si hay un ciclo seleccionado y si está cerrado
+            $cicloActualHeader = $ciclos->firstWhere('idCiclo', $cicloSeleccionado);
+            $esCicloCerradoHeader = false;
+            if ($cicloActualHeader) {
+                if ($cicloActualHeader->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($cicloActualHeader->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCicloCerradoHeader = $fechaFin->lt($hoy);
+                }
+                if (!$esCicloCerradoHeader && $cicloActualHeader->estado) {
+                    $esCicloCerradoHeader = $cicloActualHeader->estado->estado === 'Cerrado';
+                }
+            }
+        @endphp
+        <button class="btn btn-primary" onclick="openCreateGeosegmentoModal()" {{ $esCicloCerradoHeader ? 'disabled' : '' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -22,6 +37,35 @@
 
 {{-- Filters Section --}}
 <div class="filters-section">
+    <div class="filter-card">
+        <div class="filter-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Ciclo</span>
+        </div>
+        <select class="filter-select" id="cicloFilter" onchange="changeCiclo()">
+            @foreach($ciclos as $ciclo)
+                @php
+                    $esCerrado = false;
+                    if ($ciclo->fechaFin) {
+                        $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                        $hoy = \Carbon\Carbon::now()->startOfDay();
+                        $esCerrado = $fechaFin->lt($hoy);
+                    }
+                    if (!$esCerrado && $ciclo->estado) {
+                        $esCerrado = $ciclo->estado->estado === 'Cerrado';
+                    }
+                    $estadoLabel = $esCerrado ? ' (Cerrado)' : ' (Abierto)';
+                @endphp
+                <option value="{{ $ciclo->idCiclo }}" {{ $cicloSeleccionado == $ciclo->idCiclo ? 'selected' : '' }}>
+                    {{ $ciclo->ciclo }}{{ $estadoLabel }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+
     <div class="filter-card">
         <div class="filter-header">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -47,6 +91,35 @@
         <input type="text" class="filter-input" id="searchInput" placeholder="Buscar geosegmento..." value="{{ request('search') }}" onkeyup="searchGeosegmentos()">
     </div>
 </div>
+
+{{-- Warning for closed cycle --}}
+@php
+    $cicloActual = $ciclos->firstWhere('idCiclo', $cicloSeleccionado);
+    $esCicloCerrado = false;
+    if ($cicloActual) {
+        if ($cicloActual->fechaFin) {
+            $fechaFin = \Carbon\Carbon::parse($cicloActual->fechaFin)->startOfDay();
+            $hoy = \Carbon\Carbon::now()->startOfDay();
+            $esCicloCerrado = $fechaFin->lt($hoy);
+        }
+        if (!$esCicloCerrado && $cicloActual->estado) {
+            $esCicloCerrado = $cicloActual->estado->estado === 'Cerrado';
+        }
+    }
+@endphp
+
+@if($esCicloCerrado)
+<div class="alert alert-warning">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+    <div>
+        <strong>Ciclo Cerrado:</strong> Este ciclo está cerrado. No se pueden realizar modificaciones en los geosegmentos ni asignar ubigeos.
+    </div>
+</div>
+@endif
 
 {{-- Geosegmentos Table --}}
 <div class="zones-table-container">
@@ -102,7 +175,10 @@
                         </td>
                         <td class="text-right">
                             <div class="action-buttons">
-                                <button class="action-btn action-add" onclick="openAssignUbigeosModal({{ $geo->idGeosegmento }}, '{{ $geo->geosegmento }}')" title="Agregar/Reasignar ubigeos">
+                                <button class="action-btn action-add" 
+                                        onclick="openAssignUbigeosModal({{ $geo->idGeosegmento }}, '{{ $geo->geosegmento }}')" 
+                                        title="Agregar/Reasignar ubigeos"
+                                        {{ $esCicloCerrado ? 'disabled' : '' }}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <line x1="12" y1="5" x2="12" y2="19"></line>
                                         <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -114,7 +190,10 @@
                                         <circle cx="12" cy="12" r="3"></circle>
                                     </svg>
                                 </button>
-                                <button class="action-btn action-edit" onclick="openEditGeosegmentoModal({{ $geo->idGeosegmento }})" title="Editar">
+                                <button class="action-btn action-edit" 
+                                        onclick="openEditGeosegmentoModal({{ $geo->idGeosegmento }})" 
+                                        title="Editar"
+                                        {{ $esCicloCerrado ? 'disabled' : '' }}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>

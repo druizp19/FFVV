@@ -62,7 +62,7 @@
             </svg>
             <span>Buscar</span>
         </div>
-        <input type="text" class="filter-input" id="searchInput" placeholder="Buscar zona..." onkeyup="searchZones()">
+        <input type="text" class="filter-input" id="searchInput" placeholder="Buscar zona..." value="{{ request('search') }}" onkeyup="searchZones()">
     </div>
 </div>
 

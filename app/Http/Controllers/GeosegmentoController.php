@@ -47,15 +47,40 @@ class GeosegmentoController extends Controller
      */
     public function index(Request $request)
     {
-        // Obtener el ciclo abierto actual
-        $cicloAbierto = \DB::table('ODS.TAB_CICLO')
-            ->whereRaw('GETDATE() BETWEEN fechaInicio AND fechaFin')
-            ->first();
+        // Obtener todos los ciclos
+        $ciclos = \App\Models\Ciclo::with('estado')->orderBy('idCiclo', 'desc')->get();
+        
+        // Ciclo seleccionado (por defecto el abierto)
+        $cicloSeleccionado = $request->get('ciclo');
+        
+        // Si no hay ciclo seleccionado, buscar el ciclo abierto
+        if (!$cicloSeleccionado) {
+            $cicloAbierto = $ciclos->filter(function ($ciclo) {
+                $esCerrado = false;
+                
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                if (!$esCerrado && $ciclo->estado) {
+                    $esCerrado = $ciclo->estado->estado === 'Cerrado';
+                }
+                
+                return !$esCerrado;
+            })->sortByDesc('idCiclo')->first();
+            
+            if ($cicloAbierto) {
+                $cicloSeleccionado = $cicloAbierto->idCiclo;
+            }
+        }
 
+        // Obtener el periodo-ciclo del ciclo seleccionado
         $periodoCicloId = null;
-        if ($cicloAbierto) {
+        if ($cicloSeleccionado) {
             $periodoCiclo = \DB::table('ODS.TAB_PERIODO_CICLO')
-                ->where('idCiclo', $cicloAbierto->idCiclo)
+                ->where('idCiclo', $cicloSeleccionado)
                 ->where('idEstado', 1)
                 ->first();
             
@@ -95,7 +120,7 @@ class GeosegmentoController extends Controller
 
         $geosegmentos = $query->orderBy('geosegmento')->paginate(15)->appends($request->all());
 
-        return view('geosegmentos.index', compact('geosegmentos'));
+        return view('geosegmentos.index', compact('geosegmentos', 'ciclos', 'cicloSeleccionado'));
     }
 
     /**
@@ -208,7 +233,7 @@ class GeosegmentoController extends Controller
             }
 
             // Obtener el ciclo abierto actual (basado en fechas)
-            $cicloAbierto = \DB::table('ODS.TAB_CICLO')
+            $cicloAbierto = \App\Models\Ciclo::with('estado')
                 ->whereRaw('GETDATE() BETWEEN fechaInicio AND fechaFin')
                 ->first();
 
@@ -217,6 +242,14 @@ class GeosegmentoController extends Controller
                     'success' => false,
                     'message' => 'No hay un ciclo abierto actualmente.'
                 ], 400);
+            }
+
+            // Verificar si el ciclo está cerrado por estado
+            if ($cicloAbierto->estado && $cicloAbierto->estado->estado === 'Cerrado') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden asignar ubigeos en un ciclo cerrado.'
+                ], 403);
             }
 
             // Obtener el periodo-ciclo actual del ciclo abierto

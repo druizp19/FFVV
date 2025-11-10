@@ -31,7 +31,9 @@
     --info-100: #dbeafe;
 
     /* Colores de acento */
-    --accent-primary: #3b82f6;
+    --accent-primary: #f03535;
+    --accent-secondary: #7e4feb;
+    --accent-tertiary: #0162ff;
 
     /* Sombras */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -192,4 +194,23 @@ body {
     .page-subtitle {
         font-size: 13px;
     }
+}
+
+
+/* ============================================
+   Gradient Utility Classes
+   ============================================ */
+.gradient-primary {
+    background: linear-gradient(135deg, #f03535ff 0%, #7e4febff 50%, #0162ffff 100%) !important;
+}
+
+.gradient-bg {
+    background: linear-gradient(135deg, #f03535ff 0%, #7e4febff 50%, #0162ffff 100%);
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, #f03535ff 0%, #7e4febff 50%, #0162ffff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }

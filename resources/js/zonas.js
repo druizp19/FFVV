@@ -861,17 +861,25 @@ window.searchZones = function () {
     clearTimeout(searchTimeout);
 
     searchTimeout = setTimeout(() => {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const rows = document.querySelectorAll('#zonesTableBody tr');
+        applyZonesFilters();
+    }, 500);
+}
 
-        rows.forEach(row => {
-            const zoneName = row.getAttribute('data-zone-name');
-            if (zoneName) {
-                const matches = zoneName.toLowerCase().includes(searchTerm);
-                row.style.display = matches ? '' : 'none';
-            }
-        });
-    }, 300);
+function applyZonesFilters() {
+    const searchTerm = document.getElementById('searchInput').value;
+    
+    // Construir URL con parámetros
+    const url = new URL(window.location.href);
+    url.searchParams.delete('page'); // Reset pagination
+    
+    if (searchTerm) {
+        url.searchParams.set('search', searchTerm);
+    } else {
+        url.searchParams.delete('search');
+    }
+    
+    // Recargar página con nuevos parámetros
+    window.location.href = url.toString();
 }
 
 // ==========================================

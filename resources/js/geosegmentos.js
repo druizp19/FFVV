@@ -625,6 +625,10 @@ window.closeDetailsModal = function () {
 // FILTERS
 // ==========================================
 
+window.changeCiclo = function () {
+    applyFilters();
+}
+
 window.filterGeosegmentos = function () {
     applyFilters();
 }
@@ -640,10 +644,17 @@ window.searchGeosegmentos = function () {
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput').value;
     const filter = document.getElementById('ubigeoFilter').value;
+    const ciclo = document.getElementById('cicloFilter').value;
     
     // Construir URL con parámetros
     const url = new URL(window.location.href);
     url.searchParams.delete('page'); // Reset pagination
+    
+    if (ciclo) {
+        url.searchParams.set('ciclo', ciclo);
+    } else {
+        url.searchParams.delete('ciclo');
+    }
     
     if (searchTerm) {
         url.searchParams.set('search', searchTerm);

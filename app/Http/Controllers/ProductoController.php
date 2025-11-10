@@ -78,7 +78,26 @@ class ProductoController extends Controller
         $alcances = \App\Models\Alcance::orderBy('alcance', 'asc')->get();
         $cores = \App\Models\Core::orderBy('core', 'asc')->get();
 
-        return view('productos.index', compact('productos', 'estados', 'ciclos', 'marcas', 'cuotas', 'promociones', 'alcances', 'cores'));
+        // Verificar si el ciclo seleccionado está cerrado
+        $cicloCerrado = false;
+        if ($request->filled('ciclo')) {
+            $cicloSeleccionado = \App\Models\Ciclo::with('estado')->find($request->ciclo);
+            if ($cicloSeleccionado) {
+                // Verificar por fecha de fin
+                if ($cicloSeleccionado->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($cicloSeleccionado->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $cicloCerrado = $fechaFin->lt($hoy);
+                }
+                
+                // Verificar por estado
+                if (!$cicloCerrado && $cicloSeleccionado->estado) {
+                    $cicloCerrado = $cicloSeleccionado->estado->estado === 'Cerrado';
+                }
+            }
+        }
+
+        return view('productos.index', compact('productos', 'estados', 'ciclos', 'marcas', 'cuotas', 'promociones', 'alcances', 'cores', 'cicloCerrado'));
     }
 
     /**
@@ -140,6 +159,31 @@ class ProductoController extends Controller
             'fechaCierre' => 'nullable|date|after_or_equal:fechaModificacion',
         ]);
 
+        // Verificar si el ciclo está cerrado
+        $ciclo = \App\Models\Ciclo::with('estado')->find($validated['idCiclo']);
+        if ($ciclo) {
+            $esCerrado = false;
+            
+            // Verificar por fecha de fin
+            if ($ciclo->fechaFin) {
+                $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                $hoy = \Carbon\Carbon::now()->startOfDay();
+                $esCerrado = $fechaFin->lt($hoy);
+            }
+            
+            // Verificar por estado
+            if (!$esCerrado && $ciclo->estado) {
+                $esCerrado = $ciclo->estado->estado === 'Cerrado';
+            }
+            
+            if ($esCerrado) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden crear productos en un ciclo cerrado.'
+                ], 403);
+            }
+        }
+
         $result = $this->productoService->crearProducto($validated);
 
         return response()->json($result, $result['success'] ? 201 : 400);
@@ -167,6 +211,40 @@ class ProductoController extends Controller
             'fechaCierre' => 'nullable|date',
         ]);
 
+        // Obtener el producto actual para verificar su ciclo
+        $producto = \App\Models\Producto::with('ciclo.estado')->find($id);
+        
+        if (!$producto) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Producto no encontrado.'
+            ], 404);
+        }
+
+        // Verificar si el ciclo del producto está cerrado
+        if ($producto->ciclo) {
+            $esCerrado = false;
+            
+            // Verificar por fecha de fin
+            if ($producto->ciclo->fechaFin) {
+                $fechaFin = \Carbon\Carbon::parse($producto->ciclo->fechaFin)->startOfDay();
+                $hoy = \Carbon\Carbon::now()->startOfDay();
+                $esCerrado = $fechaFin->lt($hoy);
+            }
+            
+            // Verificar por estado
+            if (!$esCerrado && $producto->ciclo->estado) {
+                $esCerrado = $producto->ciclo->estado->estado === 'Cerrado';
+            }
+            
+            if ($esCerrado) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden modificar productos de un ciclo cerrado.'
+                ], 403);
+            }
+        }
+
         $result = $this->productoService->actualizarProducto($id, $validated);
 
         return response()->json($result, $result['success'] ? 200 : 400);
@@ -180,6 +258,40 @@ class ProductoController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
+        // Obtener el producto para verificar su ciclo
+        $producto = \App\Models\Producto::with('ciclo.estado')->find($id);
+        
+        if (!$producto) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Producto no encontrado.'
+            ], 404);
+        }
+
+        // Verificar si el ciclo del producto está cerrado
+        if ($producto->ciclo) {
+            $esCerrado = false;
+            
+            // Verificar por fecha de fin
+            if ($producto->ciclo->fechaFin) {
+                $fechaFin = \Carbon\Carbon::parse($producto->ciclo->fechaFin)->startOfDay();
+                $hoy = \Carbon\Carbon::now()->startOfDay();
+                $esCerrado = $fechaFin->lt($hoy);
+            }
+            
+            // Verificar por estado
+            if (!$esCerrado && $producto->ciclo->estado) {
+                $esCerrado = $producto->ciclo->estado->estado === 'Cerrado';
+            }
+            
+            if ($esCerrado) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden desactivar productos de un ciclo cerrado.'
+                ], 403);
+            }
+        }
+
         $result = $this->productoService->actualizarProducto($id, [
             'idEstado' => 0
         ]);
