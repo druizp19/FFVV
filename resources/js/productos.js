@@ -304,13 +304,63 @@ window.saveProduct = async function () {
         if (result.success) {
             showToast(result.message, 'success');
             closeConfirmProductModal();
-            setTimeout(() => window.location.reload(), 1000);
+            // Recargar la tabla sin refrescar la página
+            await reloadProductsTable();
         } else {
             showToast(result.message, 'error');
         }
     } catch (error) {
         console.error('Error:', error);
         showToast('Error al guardar el producto', 'error');
+    }
+}
+
+/**
+ * Recarga la tabla de productos sin refrescar la página completa
+ */
+async function reloadProductsTable() {
+    try {
+        const cycleFilter = document.getElementById('cycleFilter');
+        const marcaFilter = document.getElementById('marcaFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        
+        const params = new URLSearchParams();
+        if (cycleFilter && cycleFilter.value) params.append('ciclo', cycleFilter.value);
+        if (marcaFilter && marcaFilter.value) params.append('marca', marcaFilter.value);
+        if (statusFilter && statusFilter.value) params.append('estado', statusFilter.value);
+        
+        const url = `/productos${params.toString() ? '?' + params.toString() : ''}`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        const html = await response.text();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        // Actualizar el tbody de la tabla
+        const newTableBody = tempDiv.querySelector('#productsTableBody');
+        const currentTableBody = document.getElementById('productsTableBody');
+        
+        if (newTableBody && currentTableBody) {
+            currentTableBody.innerHTML = newTableBody.innerHTML;
+        }
+        
+        // Actualizar la paginación si existe
+        const newPagination = tempDiv.querySelector('.pagination-wrapper');
+        const currentPagination = document.querySelector('.pagination-wrapper');
+        
+        if (newPagination && currentPagination) {
+            currentPagination.innerHTML = newPagination.innerHTML;
+        }
+        
+    } catch (error) {
+        console.error('Error al recargar la tabla:', error);
+        showToast('Error al actualizar la tabla', 'error');
     }
 }
 

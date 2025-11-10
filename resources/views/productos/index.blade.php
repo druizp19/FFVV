@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Productos - PharmaSales')
+@section('title', 'Productos - FFVV')
 
 @section('content')
 {{-- Page Header --}}

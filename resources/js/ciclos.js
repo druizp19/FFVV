@@ -1,6 +1,6 @@
 /**
  * ============================================
- * Gestión de Ciclos Comerciales - PharmaSales
+ * Gestión de Ciclos Comerciales - FFVV
  * ============================================
  */
 
@@ -214,9 +214,8 @@ window.guardarCiclo = async function(event) {
             if (result.success) {
                 showToast('success', result.message, '¡Ciclo actualizado!');
                 window.closeModal();
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                // Recargar la tabla sin refrescar la página
+                await reloadCiclosTable();
             } else {
                 showToast('error', result.message, 'Error al actualizar');
             }
@@ -257,9 +256,8 @@ async function crearCicloVacio(data) {
         if (result.success) {
             showToast('success', 'Ciclo creado exitosamente (sin datos).', '¡Ciclo creado!');
             window.closeModal();
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            // Recargar la tabla sin refrescar la página
+            await reloadCiclosTable();
         } else {
             showToast('error', result.message, 'Error al crear');
         }
@@ -313,9 +311,8 @@ async function copiarUltimoCiclo(data) {
             const mensaje = `Ciclo clonado exitosamente. Se copiaron: ${stats.productos} productos, ${stats.zonas_empleados} zonas-empleados, ${stats.zonas_geosegmentos} zonas-geosegmentos y ${stats.fuerzas_venta} registros de fuerza de venta.`;
             showToast('success', mensaje, '¡Ciclo clonado!', 8000);
             window.closeModal();
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            // Recargar la tabla sin refrescar la página
+            await reloadCiclosTable();
         } else {
             showToast('error', copiarResult.message, 'Error al clonar');
         }
@@ -408,6 +405,44 @@ window.copiarCiclo = async function(id) {
     } catch (error) {
         showToast('error', 'No se pudo conectar con el servidor.', 'Error de conexión');
         console.error('Error:', error);
+    }
+}
+
+/**
+ * Recarga la tabla de ciclos sin refrescar la página completa
+ */
+async function reloadCiclosTable() {
+    try {
+        const response = await fetch('/ciclos', {
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        const html = await response.text();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        // Actualizar el tbody de la tabla
+        const newTableBody = tempDiv.querySelector('#ciclosTableBody');
+        const currentTableBody = document.getElementById('ciclosTableBody');
+        
+        if (newTableBody && currentTableBody) {
+            currentTableBody.innerHTML = newTableBody.innerHTML;
+        }
+        
+        // Actualizar la paginación si existe
+        const newPagination = tempDiv.querySelector('.pagination-wrapper');
+        const currentPagination = document.querySelector('.pagination-wrapper');
+        
+        if (newPagination && currentPagination) {
+            currentPagination.innerHTML = newPagination.innerHTML;
+        }
+        
+    } catch (error) {
+        console.error('Error al recargar la tabla:', error);
+        showToast('error', 'Error al actualizar la tabla', 'Error');
     }
 }
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'PharmaSales - Gestión de Ventas')</title>
+    <title>@yield('title', 'FFVV - Gestión de Ventas')</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
@@ -84,6 +84,15 @@
                             <circle cx="12" cy="10" r="3"/>
                         </svg>
                         <span>Zonas</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('geosegmentos.index') }}" class="nav-link {{ request()->routeIs('geosegmentos.*') ? 'active' : '' }}" data-tooltip="Geosegmentos">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <span>Geosegmentos</span>
                     </a>
                 </li>
                 <li class="nav-item">

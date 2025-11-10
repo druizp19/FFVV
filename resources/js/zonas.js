@@ -81,6 +81,56 @@ window.closeToast = function (toastId) {
     }
 }
 
+/**
+ * Muestra un toast con un botón de acción
+ */
+window.showToastWithAction = function (message, type = 'success', actionText = 'Acción', buttonText = 'Aceptar', onAction = null, duration = 8000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type} toast-with-action`;
+    const toastId = 'toast_' + Date.now();
+    toast.id = toastId;
+
+    toast.innerHTML = `
+        <div class="toast-icon">${toastIcons[type]}</div>
+        <div class="toast-content">
+            <div class="toast-title">${toastTitles[type]}</div>
+            <div class="toast-message">${message}</div>
+            <div class="toast-action-text">${actionText}</div>
+        </div>
+        <div class="toast-actions">
+            <button class="toast-action-btn" onclick="handleToastAction('${toastId}', ${onAction ? 'window.toastActions[\'' + toastId + '\']' : 'null'})">
+                ${buttonText}
+            </button>
+            <button class="toast-close-btn" onclick="closeToast('${toastId}')">&times;</button>
+        </div>
+    `;
+
+    // Guardar la función de acción
+    if (onAction) {
+        if (!window.toastActions) window.toastActions = {};
+        window.toastActions[toastId] = onAction;
+    }
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        closeToast(toastId);
+        if (window.toastActions && window.toastActions[toastId]) {
+            delete window.toastActions[toastId];
+        }
+    }, duration);
+}
+
+window.handleToastAction = function (toastId, actionFn) {
+    if (actionFn && typeof actionFn === 'function') {
+        actionFn();
+    }
+    closeToast(toastId);
+}
+
 // ==========================================
 // 3. MODAL MANAGEMENT
 // ==========================================
@@ -199,7 +249,8 @@ window.saveZone = async function (event) {
         if (result.success) {
             showToast(result.message, 'success');
             closeModal();
-            setTimeout(() => window.location.reload(), 1000);
+            // Recargar la tabla sin refrescar la página
+            await reloadZonesTable();
         } else {
             showToast(result.message, 'error');
         }
@@ -266,7 +317,8 @@ async function deactivateZone(zoneId) {
 
         if (result.success) {
             showToast(result.message, 'success');
-            setTimeout(() => window.location.reload(), 1000);
+            // Recargar la tabla sin refrescar la página
+            await reloadZonesTable();
         } else {
             showToast(result.message, 'error');
         }
@@ -429,7 +481,7 @@ function buildDetailsHTML(zona) {
                                 </div>
                                 <span class="zone-geo-name">${geo.geosegmento}</span>
                                 ${!esCerrado ? `
-                                    <button class="zone-geo-remove" onclick="confirmRemoveGeosegmento(${geo.id}, '${geo.geosegmento.replace(/'/g, "\\'")}')}" title="Quitar">
+                                    <button class="zone-geo-remove" onclick="confirmRemoveGeosegmento(${geo.id}, \`${geo.geosegmento}\`)" title="Quitar">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="18" y1="6" x2="6" y2="18"></line>
                                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -515,7 +567,10 @@ async function removeGeosegmentoFromZone(geoId) {
 
         if (result.success) {
             showToast(result.message, 'success');
-            viewZoneDetails(currentZoneId);
+            // Actualizar solo la modal de detalles
+            await viewZoneDetails(currentZoneId);
+            // Actualizar la tabla en segundo plano
+            await reloadZonesTable();
         } else {
             showToast(result.message, 'error');
         }
@@ -725,7 +780,10 @@ async function addMultipleEmpleadosToZone(empIds) {
 
         if (successCount > 0) {
             showToast(`${successCount} empleado${successCount !== 1 ? 's' : ''} agregado${successCount !== 1 ? 's' : ''} exitosamente`, 'success');
-            viewZoneDetails(currentZoneId);
+            // Actualizar solo la modal de detalles
+            await viewZoneDetails(currentZoneId);
+            // Actualizar la tabla en segundo plano
+            await reloadZonesTable();
         }
 
         if (errorCount > 0) {
@@ -751,7 +809,10 @@ async function removeEmpleadoFromZone(empId) {
 
         if (result.success) {
             showToast(result.message, 'success');
-            viewZoneDetails(currentZoneId);
+            // Actualizar solo la modal de detalles
+            await viewZoneDetails(currentZoneId);
+            // Actualizar la tabla en segundo plano
+            await reloadZonesTable();
         } else {
             showToast(result.message, 'error');
         }
@@ -825,6 +886,51 @@ function isCicloCerrado() {
     return selectedOption.getAttribute('data-cerrado') === 'true';
 }
 
+/**
+ * Recarga la tabla de zonas sin refrescar la página completa
+ */
+async function reloadZonesTable() {
+    try {
+        const cycleFilter = document.getElementById('cycleFilter');
+        const cicloId = cycleFilter ? cycleFilter.value : '';
+
+        const url = cicloId ? `/zonas?ciclo=${cicloId}` : '/zonas';
+
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const html = await response.text();
+
+        // Crear un elemento temporal para parsear el HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+
+        // Extraer solo el tbody de la tabla
+        const newTableBody = tempDiv.querySelector('#zonesTableBody');
+        const currentTableBody = document.getElementById('zonesTableBody');
+
+        if (newTableBody && currentTableBody) {
+            currentTableBody.innerHTML = newTableBody.innerHTML;
+        }
+
+        // Actualizar la paginación si existe
+        const newPagination = tempDiv.querySelector('.pagination-wrapper');
+        const currentPagination = document.querySelector('.pagination-wrapper');
+
+        if (newPagination && currentPagination) {
+            currentPagination.innerHTML = newPagination.innerHTML;
+        }
+
+    } catch (error) {
+        console.error('Error al recargar la tabla:', error);
+        showToast('Error al actualizar la tabla', 'error');
+    }
+}
+
 // ==========================================
 // 9. INITIALIZATION
 // ==========================================
@@ -837,14 +943,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') {
             // Verificar qué modales están abiertas y cerrar la de mayor prioridad
             const confirmModal = document.getElementById('confirmModal');
+            const createGeosegmentoModal = document.getElementById('createGeosegmentoModal');
             const addEmpleadoModal = document.getElementById('addEmpleadoModal');
             const addGeosegmentoModal = document.getElementById('addGeosegmentoModal');
             const detailsModal = document.getElementById('detailsModal');
             const zoneModal = document.getElementById('zoneModal');
 
             // Cerrar en orden de prioridad (z-index)
+            const assignUbigeosModal = document.getElementById('assignUbigeosModal');
+            
             if (confirmModal && confirmModal.classList.contains('active')) {
                 closeConfirmModal();
+            } else if (assignUbigeosModal && assignUbigeosModal.classList.contains('active')) {
+                closeAssignUbigeosModal();
+            } else if (createGeosegmentoModal && createGeosegmentoModal.classList.contains('active')) {
+                closeCreateGeosegmentoModal();
             } else if (addEmpleadoModal && addEmpleadoModal.classList.contains('active')) {
                 closeAddEmpleadoModal();
             } else if (addGeosegmentoModal && addGeosegmentoModal.classList.contains('active')) {
@@ -858,7 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Cerrar modales al hacer clic fuera
-    const modals = ['zoneModal', 'detailsModal', 'confirmModal', 'addGeosegmentoModal', 'addEmpleadoModal'];
+    const modals = ['zoneModal', 'detailsModal', 'confirmModal', 'addGeosegmentoModal', 'addEmpleadoModal', 'createGeosegmentoModal', 'assignUbigeosModal'];
     modals.forEach(modalId => {
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -869,6 +982,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (modalId === 'confirmModal') closeConfirmModal();
                     else if (modalId === 'addGeosegmentoModal') closeAddGeosegmentoModal();
                     else if (modalId === 'addEmpleadoModal') closeAddEmpleadoModal();
+                    else if (modalId === 'createGeosegmentoModal') closeCreateGeosegmentoModal();
+                    else if (modalId === 'assignUbigeosModal') closeAssignUbigeosModal();
                 }
             });
         }
@@ -907,6 +1022,100 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 
 let selectedGeosegmentos = [];
+
+// ==========================================
+// MODAL CREAR GEOSEGMENTO
+// ==========================================
+
+window.openCreateGeosegmentoModal = function () {
+    const modal = document.getElementById('createGeosegmentoModal');
+    const form = document.getElementById('createGeosegmentoForm');
+
+    form.reset();
+
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+window.closeCreateGeosegmentoModal = function () {
+    const modal = document.getElementById('createGeosegmentoModal');
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+    }, 300);
+}
+
+window.saveNewGeosegmento = async function (event) {
+    event.preventDefault();
+
+    const geosegmento = document.getElementById('newGeosegmento').value.trim();
+    const lugar = document.getElementById('newLugar').value.trim();
+
+    if (!geosegmento) {
+        showToast('El nombre del geosegmento es requerido', 'warning');
+        return;
+    }
+
+    try {
+        const data = {
+            geosegmento: geosegmento
+        };
+
+        // Solo agregar lugar si tiene valor
+        if (lugar) {
+            data.lugar = lugar;
+        }
+
+        const response = await fetch('/geosegmentos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            closeCreateGeosegmentoModal();
+
+            // Actualizar la lista de geosegmentos
+            if (result.data && result.data.idGeosegmento) {
+                // Agregar el nuevo geosegmento a la lista global
+                if (!window.geosegmentosData) {
+                    window.geosegmentosData = [];
+                }
+                window.geosegmentosData.push({
+                    idGeosegmento: result.data.idGeosegmento,
+                    geosegmento: result.data.geosegmento,
+                    lugar: result.data.lugar || ''
+                });
+
+                // Recargar la lista de geosegmentos en la modal
+                loadGeosegmentos();
+                
+                // Mostrar toast con opción de agregar ubigeos
+                showToastWithAction(
+                    `Geosegmento "${result.data.geosegmento}" creado exitosamente`,
+                    'success',
+                    '¿Deseas agregar ubigeos ahora?',
+                    'Agregar Ubigeos',
+                    () => openAssignUbigeosModal(result.data.idGeosegmento, result.data.geosegmento)
+                );
+            } else {
+                showToast(result.message || 'Geosegmento creado exitosamente', 'success');
+            }
+        } else {
+            showToast(result.message || 'Error al crear el geosegmento', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error al crear el geosegmento', 'error');
+    }
+}
 
 window.openAddGeosegmentoModal = function () {
     const modal = document.getElementById('addGeosegmentoModal');
@@ -1093,7 +1302,10 @@ async function addMultipleGeosegmentosToZone(geoIds) {
 
         if (successCount > 0) {
             showToast(`${successCount} geosegmento${successCount !== 1 ? 's' : ''} agregado${successCount !== 1 ? 's' : ''} exitosamente`, 'success');
-            viewZoneDetails(currentZoneId);
+            // Actualizar solo la modal de detalles
+            await viewZoneDetails(currentZoneId);
+            // Actualizar la tabla en segundo plano
+            await reloadZonesTable();
         }
 
         if (errorCount > 0) {
@@ -1102,5 +1314,188 @@ async function addMultipleGeosegmentosToZone(geoIds) {
     } catch (error) {
         console.error('Error:', error);
         showToast('Error al agregar los geosegmentos', 'error');
+    }
+}
+
+
+// ==========================================
+// MODAL ASIGNAR UBIGEOS A GEOSEGMENTO
+// ==========================================
+
+let currentGeosegmentoId = null;
+let currentGeosegmentoName = null;
+let selectedUbigeos = [];
+
+window.openAssignUbigeosModal = function (geoId, geoName) {
+    currentGeosegmentoId = geoId;
+    currentGeosegmentoName = geoName;
+    selectedUbigeos = [];
+    
+    const modal = document.getElementById('assignUbigeosModal');
+    const title = document.getElementById('assignUbigeosTitle');
+    const searchInput = document.getElementById('ubigeoSearchInput');
+    
+    title.textContent = `Agregar Ubigeos a "${geoName}"`;
+    searchInput.value = '';
+    
+    loadAvailableUbigeos();
+    
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+window.closeAssignUbigeosModal = function () {
+    const modal = document.getElementById('assignUbigeosModal');
+    modal.classList.add('closing');
+
+    setTimeout(() => {
+        modal.classList.remove('active', 'closing');
+        currentGeosegmentoId = null;
+        currentGeosegmentoName = null;
+        selectedUbigeos = [];
+    }, 300);
+}
+
+window.searchUbigeos = function () {
+    loadAvailableUbigeos();
+}
+
+function loadAvailableUbigeos() {
+    const searchTerm = document.getElementById('ubigeoSearchInput').value.toLowerCase().trim();
+    const container = document.getElementById('ubigeosList');
+    
+    if (!searchTerm) {
+        container.innerHTML = `
+            <div class="ubigeo-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <p>Escribe para buscar ubigeos por departamento, provincia o distrito...</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="ubigeo-loading">
+            <div class="spinner"></div>
+            <p>Buscando ubigeos...</p>
+        </div>
+    `;
+    
+    // Buscar ubigeos disponibles (sin geosegmento asignado o del geosegmento actual)
+    fetch(`/api/ubigeos/search?q=${encodeURIComponent(searchTerm)}&geosegmento=${currentGeosegmentoId}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success && result.data.length > 0) {
+                renderUbigeosList(result.data);
+            } else {
+                container.innerHTML = `
+                    <div class="ubigeo-empty">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 8v4M12 16h.01"></path>
+                        </svg>
+                        <p>No se encontraron ubigeos con "${searchTerm}"</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            container.innerHTML = `
+                <div class="ubigeo-empty error">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <p>Error al buscar ubigeos</p>
+                </div>
+            `;
+        });
+}
+
+function renderUbigeosList(ubigeos) {
+    const container = document.getElementById('ubigeosList');
+    
+    container.innerHTML = ubigeos.map(ubigeo => `
+        <div class="ubigeo-item ${selectedUbigeos.includes(ubigeo.idUbigeo) ? 'selected' : ''}" 
+             onclick="toggleUbigeo(${ubigeo.idUbigeo})">
+            <div class="ubigeo-item-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+            </div>
+            <div class="ubigeo-item-content">
+                <div class="ubigeo-item-title">${ubigeo.distrito}</div>
+                <div class="ubigeo-item-subtitle">${ubigeo.provincia}, ${ubigeo.departamento}</div>
+            </div>
+            <div class="ubigeo-item-check">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.toggleUbigeo = function (ubigeoId) {
+    const index = selectedUbigeos.indexOf(ubigeoId);
+    
+    if (index > -1) {
+        selectedUbigeos.splice(index, 1);
+    } else {
+        selectedUbigeos.push(ubigeoId);
+    }
+    
+    // Actualizar visualmente
+    const item = document.querySelector(`.ubigeo-item[onclick="toggleUbigeo(${ubigeoId})"]`);
+    if (item) {
+        item.classList.toggle('selected');
+    }
+    
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const countElement = document.getElementById('selectedUbigeosCount');
+    if (countElement) {
+        countElement.textContent = selectedUbigeos.length;
+    }
+}
+
+window.confirmAssignUbigeos = async function () {
+    if (selectedUbigeos.length === 0) {
+        showToast('Debes seleccionar al menos un ubigeo', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/geosegmentos/${currentGeosegmentoId}/ubigeos`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                ubigeos: selectedUbigeos
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(`${selectedUbigeos.length} ubigeo${selectedUbigeos.length !== 1 ? 's' : ''} asignado${selectedUbigeos.length !== 1 ? 's' : ''} exitosamente`, 'success');
+            closeAssignUbigeosModal();
+        } else {
+            showToast(result.message || 'Error al asignar ubigeos', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error al asignar ubigeos', 'error');
     }
 }

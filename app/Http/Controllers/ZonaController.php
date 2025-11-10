@@ -78,16 +78,7 @@ class ZonaController extends Controller
         }
         
         // Query base: SIEMPRE traer todas las zonas
-        $query = \App\Models\Zona::with(['estado'])
-            ->withCount([
-                'zonasGeosegmentos as ubigeos_count' => function ($q) use ($cicloSeleccionado) {
-                    $q->join('ODS.TAB_UBIGEO', 'ODS.TAB_ZONAGEO.idGeosegmento', '=', 'ODS.TAB_UBIGEO.idGeosegmento')
-                      ->where('ODS.TAB_ZONAGEO.idEstado', 1);
-                    if ($cicloSeleccionado) {
-                        $q->where('ODS.TAB_ZONAGEO.idCiclo', $cicloSeleccionado);
-                    }
-                }
-            ]);
+        $query = \App\Models\Zona::with(['estado']);
         
         // Si hay ciclo seleccionado, cargar relaciones filtradas por ciclo
         if ($cicloSeleccionado) {
@@ -125,6 +116,29 @@ class ZonaController extends Controller
         $zonas = $query->orderBy('idZona', 'desc')
             ->paginate(10)
             ->appends($request->except('page'));
+        
+        // Agregar el conteo de ubigeos manualmente para cada zona
+        foreach ($zonas as $zona) {
+            // Primero obtener los IDs de geosegmentos activos para esta zona y ciclo
+            $geosegmentosActivos = \DB::table('ODS.TAB_ZONAGEO')
+                ->where('idZona', $zona->idZona)
+                ->where('idEstado', 1);
+            
+            if ($cicloSeleccionado) {
+                $geosegmentosActivos->where('idCiclo', $cicloSeleccionado);
+            }
+            
+            $idsGeosegmentos = $geosegmentosActivos->pluck('idGeosegmento')->toArray();
+            
+            // Contar los ubigeos de esos geosegmentos
+            if (count($idsGeosegmentos) > 0) {
+                $zona->ubigeos_count = \DB::table('ODS.TAB_UBIGEO')
+                    ->whereIn('idGeosegmento', $idsGeosegmentos)
+                    ->count();
+            } else {
+                $zona->ubigeos_count = 0;
+            }
+        }
         
         $geosegmentos = $this->geosegmentoService->getAllGeosegmentos();
         $empleados = $this->empleadoService->getAllEmpleados();

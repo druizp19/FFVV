@@ -95,17 +95,25 @@ class Zona extends Model
     }
 
     /**
-     * Obtiene el conteo de ubigeos asociados a esta zona a través de sus geosegmentos.
+     * Obtiene el conteo de ubigeos asociados a esta zona a través de sus geosegmentos activos.
+     * NOTA: Este accessor se sobrescribe en el controlador para filtrar por ciclo.
      *
      * @return int
      */
     public function getUbigeosCountAttribute(): int
     {
+        // Si ya se asignó manualmente (desde el controlador), usar ese valor
+        if (isset($this->attributes['ubigeos_count'])) {
+            return $this->attributes['ubigeos_count'];
+        }
+        
+        // Fallback: contar solo geosegmentos activos (sin filtro de ciclo)
         return \DB::table('ODS.TAB_UBIGEO')
             ->whereIn('idGeosegmento', function ($query) {
                 $query->select('idGeosegmento')
                     ->from('ODS.TAB_ZONAGEO')
-                    ->where('idZona', $this->idZona);
+                    ->where('idZona', $this->idZona)
+                    ->where('idEstado', 1);
             })
             ->count();
     }

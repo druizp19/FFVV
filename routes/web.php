@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CicloController;
 use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\ZonaController;
+use App\Http\Controllers\GeosegmentoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\HistorialController;
 use App\Http\Controllers\DashboardController;
@@ -55,6 +56,20 @@ Route::prefix('empleados')->name('empleados.')->group(function () {
     Route::post('/', [EmpleadoController::class, 'store'])->name('store');
     Route::put('/{id}', [EmpleadoController::class, 'update'])->name('update');
     Route::delete('/{id}', [EmpleadoController::class, 'destroy'])->name('destroy');
+});
+
+// Rutas de Geosegmentos
+Route::prefix('geosegmentos')->name('geosegmentos.')->group(function () {
+    Route::get('/', [GeosegmentoController::class, 'index'])->name('index');
+    Route::get('/{id}', [GeosegmentoController::class, 'show'])->name('show');
+    Route::get('/{id}/ubigeos-list', [GeosegmentoController::class, 'getUbigeosList'])->name('ubigeosList');
+    Route::post('/', [GeosegmentoController::class, 'store'])->name('store');
+    Route::post('/{id}/ubigeos', [GeosegmentoController::class, 'assignUbigeos'])->name('assignUbigeos');
+});
+
+// Rutas API
+Route::prefix('api')->name('api.')->group(function () {
+    Route::get('/ubigeos/search', [\App\Http\Controllers\Api\UbigeoController::class, 'search'])->name('ubigeos.search');
 });
 
 // Rutas de Zonas

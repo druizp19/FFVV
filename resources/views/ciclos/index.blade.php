@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Ciclos Comerciales - PharmaSales')
+@section('title', 'Ciclos Comerciales - FFVV')
 
 @section('content')
 <div class="page-header">

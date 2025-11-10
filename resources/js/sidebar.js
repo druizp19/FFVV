@@ -1,11 +1,11 @@
 /**
  * ============================================
- * Sidebar Functionality - PharmaSales
+ * Sidebar Functionality - FFVV
  * ============================================
  */
 
 // Estado del sidebar
-const SIDEBAR_STATE_KEY = 'pharmasales_sidebar_collapsed';
+const SIDEBAR_STATE_KEY = 'FFVV_sidebar_collapsed';
 const MOBILE_BREAKPOINT = 768;
 
 /**
