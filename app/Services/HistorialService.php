@@ -22,7 +22,7 @@ class HistorialService
      * @param int $perPage
      * @return LengthAwarePaginator
      */
-    public function getHistorial(array $filtros = [], int $perPage = 15): LengthAwarePaginator
+    public function getHistorial(array $filtros = [], int $perPage = 5): LengthAwarePaginator
     {
         return $this->historialRepository->getAllPaginated($filtros, $perPage);
     }

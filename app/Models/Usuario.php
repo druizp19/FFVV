@@ -11,14 +11,28 @@ class Usuario extends Model
      *
      * @var string
      */
-    protected $table = 'ODS.TAB_USUARIO';
+    protected $table = 'ODS.TAB_USUARIO_FFVV';
 
     /**
      * La clave primaria asociada a la tabla.
      *
      * @var string
      */
-    protected $primaryKey = 'idUsuario';
+    protected $primaryKey = 'correo';
+
+    /**
+     * Indica si la clave primaria es auto-incremental.
+     *
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
+     * El tipo de la clave primaria.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
 
     /**
      * Indica si el modelo debe usar timestamps.

@@ -41,7 +41,7 @@ class Historial extends Model
         'descripcion',
         'datosAnteriores',
         'datosNuevos',
-        'idUsuario',
+        'usuario',
         'fechaHora',
     ];
 
@@ -55,7 +55,6 @@ class Historial extends Model
         'idEntidad' => 'integer',
         'datosAnteriores' => 'array',
         'datosNuevos' => 'array',
-        'idUsuario' => 'integer',
         'fechaHora' => 'datetime',
     ];
 
@@ -69,15 +68,7 @@ class Historial extends Model
         return $this->belongsTo(Ciclo::class, 'idCiclo', 'idCiclo');
     }
 
-    /**
-     * Relación con el modelo User.
-     *
-     * @return BelongsTo
-     */
-    public function usuario(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'idUsuario', 'id');
-    }
+
 
     /**
      * Scope para filtrar por ciclo.

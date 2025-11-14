@@ -96,6 +96,18 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="{{ route('bricks.index') }}" class="nav-link {{ request()->routeIs('bricks.*') ? 'active' : '' }}" data-tooltip="Bricks">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2"/>
+                            <path d="M3 9h18"/>
+                            <path d="M3 15h18"/>
+                            <path d="M9 3v18"/>
+                            <path d="M15 3v18"/>
+                        </svg>
+                        <span>Bricks</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ route('productos.index') }}" class="nav-link {{ request()->routeIs('productos.*') ? 'active' : '' }}" data-tooltip="Productos">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="m7.5 4.27 9 5.15"/>
@@ -126,7 +138,7 @@
             </div>
             <div class="user-info">
                 <div class="user-name">{{ userName() }}</div>
-                <div class="user-role">{{ ucfirst(azureUser()['rol'] ?? 'Usuario') }}</div>
+                <div class="user-role">{{ ucfirst(userRole()) }}</div>
             </div>
             <form action="{{ route('logout') }}" method="POST" class="logout-form">
                 @csrf

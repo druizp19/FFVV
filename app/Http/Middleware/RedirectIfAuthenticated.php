@@ -15,8 +15,9 @@ class RedirectIfAuthenticated
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (session()->has('azure_user')) {
-            return redirect('/ciclos');
+        // Verificar si hay sesión activa (Azure o SSO)
+        if (session()->has('azure_user') || session()->has('usuario')) {
+            return redirect()->route('dashboard.index');
         }
 
         return $next($request);

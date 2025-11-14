@@ -43,3 +43,5 @@ function animateStatNumbers() {
         }, stepTime);
     });
 }
+
+

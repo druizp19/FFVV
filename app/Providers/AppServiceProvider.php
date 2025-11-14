@@ -63,7 +63,8 @@ use App\Services\{
     EmpleadoService,
     ProductoService,
     FuerzaVentaService,
-    UbigeoService
+    UbigeoService,
+    SSOTokenService
 };
 
 class AppServiceProvider extends ServiceProvider
@@ -292,6 +293,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(UbigeoService::class, function ($app) {
             return new UbigeoService($app->make(UbigeoRepository::class));
         });
+        
+        // SSO Token Service
+        $this->app->singleton(SSOTokenService::class);
     }
 
     /**

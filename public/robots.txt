@@ -1,2 +1,38 @@
+# robots.txt - Control de indexación de motores de búsqueda
+# Este archivo le dice a Google, Bing, etc. qué páginas pueden indexar
+
+# Permitir todos los bots
 User-agent: *
-Disallow:
+
+# Bloquear rutas sensibles y administrativas
+Disallow: /admin
+Disallow: /api/
+Disallow: /auth/
+Disallow: /login
+Disallow: /logout
+Disallow: /ciclos
+Disallow: /empleados
+Disallow: /zonas
+Disallow: /productos
+Disallow: /geosegmentos
+Disallow: /bricks
+Disallow: /historial
+Disallow: /dashboard
+
+# Bloquear archivos y carpetas del sistema
+Disallow: /storage/
+Disallow: /vendor/
+Disallow: /.env
+Disallow: /.git
+
+# Permitir recursos públicos
+Allow: /css/
+Allow: /js/
+Allow: /images/
+Allow: /build/
+
+# Sitemap (opcional - crear si tienes páginas públicas)
+# Sitemap: https://tu-dominio.com/sitemap.xml /admin
+Disallow: /api
+Disallow: /auth
+Allow: /

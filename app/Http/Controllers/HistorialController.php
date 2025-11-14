@@ -34,7 +34,7 @@ class HistorialController extends Controller
             'search' => $request->input('search'),
         ];
 
-        $historial = $this->historialService->getHistorial($filtros, 15);
+        $historial = $this->historialService->getHistorial($filtros, 5);
         $ciclos = Ciclo::orderBy('idCiclo', 'desc')->get();
         $entidades = $this->historialService->getEntidadesDisponibles();
         $acciones = $this->historialService->getAccionesDisponibles();

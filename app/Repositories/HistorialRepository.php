@@ -15,9 +15,9 @@ class HistorialRepository
      * @param int $perPage
      * @return LengthAwarePaginator
      */
-    public function getAllPaginated(array $filtros = [], int $perPage = 15): LengthAwarePaginator
+    public function getAllPaginated(array $filtros = [], int $perPage = 5): LengthAwarePaginator
     {
-        $query = Historial::with(['ciclo', 'usuario']);
+        $query = Historial::with(['ciclo']);
 
         // Aplicar filtros
         if (!empty($filtros['ciclo'])) {
@@ -54,7 +54,7 @@ class HistorialRepository
      */
     public function getPorCiclo(int $idCiclo): Collection
     {
-        return Historial::with(['ciclo', 'usuario'])
+        return Historial::with(['ciclo'])
             ->where('idCiclo', $idCiclo)
             ->orderBy('fechaHora', 'desc')
             ->get();
@@ -69,7 +69,7 @@ class HistorialRepository
      */
     public function getPorEntidad(string $entidad, int $idEntidad): Collection
     {
-        return Historial::with(['ciclo', 'usuario'])
+        return Historial::with(['ciclo'])
             ->where('entidad', $entidad)
             ->where('idEntidad', $idEntidad)
             ->orderBy('fechaHora', 'desc')

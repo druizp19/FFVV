@@ -23,8 +23,6 @@ class DashboardService
     {
         return [
             'estadisticas' => $this->dashboardRepository->getEstadisticasGenerales(),
-            'empleadosPorZona' => $this->dashboardRepository->getEmpleadosPorZona($idCiclo),
-            'geosegmentosPorZona' => $this->dashboardRepository->getGeosegmentosPorZona($idCiclo),
             'accionesPorTipo' => $this->dashboardRepository->getAccionesPorTipo($idCiclo),
             'productosPorCore' => $this->dashboardRepository->getProductosPorCore($idCiclo),
             'actividadPorMes' => $this->dashboardRepository->getActividadPorMes(6),
@@ -90,4 +88,5 @@ class DashboardService
             'values' => array_column($data, 'total'),
         ];
     }
+
 }

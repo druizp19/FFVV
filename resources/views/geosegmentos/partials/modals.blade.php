@@ -38,42 +38,62 @@
 </div>
 
 {{-- Modal Asignar Ubigeos --}}
-<div class="modal" id="assignUbigeosModal">
-    <div class="modal-dialog">
+<div class="modal modal-ubigeos-assign" id="assignUbigeosModal">
+    <div class="modal-dialog modal-horizontal-ubigeos">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="assignUbigeosTitle">Agregar Ubigeos</h2>
                 <button class="modal-close" onclick="closeAssignUbigeosModal()" type="button">&times;</button>
             </div>
 
-            <div class="modal-body">
-                {{-- Buscador --}}
-                <div class="ubigeo-search-wrapper">
-                    <div class="ubigeo-search-box">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.35-4.35"></path>
-                        </svg>
-                        <input 
-                            type="text" 
-                            class="ubigeo-search-input" 
-                            id="ubigeoSearchInput" 
-                            placeholder="Buscar por departamento, provincia o distrito..." 
-                            onkeyup="searchUbigeos()"
-                            autocomplete="off"
-                        >
-                    </div>
-                </div>
-
-                {{-- Lista de Ubigeos --}}
-                <div class="ubigeos-list-container">
-                    <div id="ubigeosList">
-                        <div class="ubigeo-empty">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="modal-body-horizontal">
+                {{-- Panel Izquierdo: Búsqueda y Resumen --}}
+                <div class="modal-sidebar">
+                    <div class="sidebar-section">
+                        <label class="form-label">Buscar Ubigeos</label>
+                        <div class="ubigeo-search-box">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <path d="m21 21-4.35-4.35"></path>
                             </svg>
-                            <p>Escribe para buscar ubigeos...</p>
+                            <input 
+                                type="text" 
+                                class="ubigeo-search-input" 
+                                id="ubigeoSearchInput" 
+                                placeholder="Buscar..." 
+                                onkeyup="searchUbigeos()"
+                                autocomplete="off"
+                            >
+                        </div>
+                        <small class="form-hint">Por departamento, provincia o distrito</small>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <div class="selection-summary">
+                            <div class="summary-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </div>
+                            <div class="summary-content">
+                                <div class="summary-count" id="selectedUbigeosCount">0</div>
+                                <div class="summary-label">Ubigeos seleccionados</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Panel Derecho: Lista de Ubigeos --}}
+                <div class="modal-main-content">
+                    <div class="ubigeos-list-container">
+                        <div id="ubigeosList">
+                            <div class="ubigeo-empty">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                                <p>Escribe para buscar ubigeos...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -85,7 +105,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Asignar <span class="selected-count-badge" id="selectedUbigeosCount">0</span>
+                    Asignar Ubigeos
                 </button>
             </div>
         </div>

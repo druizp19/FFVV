@@ -50,6 +50,14 @@
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Excepción para modales horizontales grandes */
+#assignUbigeosModal .modal-content,
+#addGeosegmentoModal .modal-content,
+#addEmpleadoModal .modal-content {
+    max-width: none;
+    padding: 0;
+}
+
 .modal.active .modal-content {
     animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
@@ -111,6 +119,13 @@
     margin-bottom: 8px;
 }
 
+/* Excepción para modales horizontales */
+#assignUbigeosModal .modal-header,
+#addGeosegmentoModal .modal-header,
+#addEmpleadoModal .modal-header {
+    margin-bottom: 0;
+}
+
 .modal-header h2 {
     font-size: 24px;
     font-weight: 600;
@@ -167,6 +182,13 @@
     margin-top: 32px;
     justify-content: flex-end;
     flex-wrap: wrap;
+}
+
+/* Excepción para modales horizontales */
+#assignUbigeosModal .modal-footer,
+#addGeosegmentoModal .modal-footer,
+#addEmpleadoModal .modal-footer {
+    margin-top: 0;
 }
 
 .modal-footer .btn {

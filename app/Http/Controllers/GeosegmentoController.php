@@ -320,6 +320,31 @@ class GeosegmentoController extends Controller
                 $message[] = "{$skippedCount} ya estaban asignados";
             }
 
+            // Registrar en el historial
+            if ($updatedCount > 0) {
+                $azureUser = session('azure_user');
+                $nombreUsuario = $azureUser['name'] ?? 'Sistema';
+                
+                \App\Models\Historial::create([
+                    'idCiclo' => $cicloAbierto->idCiclo,
+                    'entidad' => 'Geosegmento',
+                    'idEntidad' => $id,
+                    'accion' => 'Asignar',
+                    'descripcion' => sprintf(
+                        'Se asignaron %d ubigeo(s) al geosegmento "%s" en el ciclo %s',
+                        $updatedCount,
+                        $geosegmento->geosegmento,
+                        $cicloAbierto->ciclo
+                    ),
+                    'datosNuevos' => [
+                        'ubigeos_asignados' => $updatedCount,
+                        'ubigeos_ids' => $validated['ubigeos']
+                    ],
+                    'usuario' => $nombreUsuario,
+                    'fechaHora' => now(),
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => implode(', ', $message) . ' al ciclo ' . $cicloAbierto->ciclo . '.',

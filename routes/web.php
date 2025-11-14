@@ -8,7 +8,14 @@ use App\Http\Controllers\GeosegmentoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\HistorialController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\BrickController;
 use App\Http\Controllers\Auth\AzureAuthController;
+
+// Rutas SSO (Single Sign-On) - Deben estar antes del middleware guest
+Route::prefix('sso')->name('sso.')->group(function () {
+    Route::get('/login', [\App\Http\Controllers\SSOController::class, 'login'])->name('login');
+    Route::get('/logout', [\App\Http\Controllers\SSOController::class, 'logout'])->name('logout');
+});
 
 // Rutas de autenticación (solo para invitados)
 Route::middleware(['guest'])->group(function () {
@@ -70,6 +77,10 @@ Route::prefix('geosegmentos')->name('geosegmentos.')->group(function () {
 // Rutas API
 Route::prefix('api')->name('api.')->group(function () {
     Route::get('/ubigeos/search', [\App\Http\Controllers\Api\UbigeoController::class, 'search'])->name('ubigeos.search');
+    Route::get('/canales', [\App\Http\Controllers\Api\CanalController::class, 'index'])->name('canales.index');
+    Route::get('/geosegmentos', [\App\Http\Controllers\Api\GeosegmentoController::class, 'index'])->name('geosegmentos.index');
+    Route::get('/bricks/available', [\App\Http\Controllers\Api\BrickController::class, 'available'])->name('bricks.available');
+    Route::get('/bricks/filters', [\App\Http\Controllers\Api\BrickFilterController::class, 'getFilters'])->name('bricks.filters');
 });
 
 // Rutas de Zonas
@@ -117,6 +128,16 @@ Route::prefix('historial')->name('historial.')->group(function () {
     Route::get('/entidad/{entidad}/{idEntidad}', [HistorialController::class, 'porEntidad'])->name('porEntidad');
     Route::get('/estadisticas/{idCiclo}', [HistorialController::class, 'estadisticas'])->name('estadisticas');
     Route::post('/registrar', [HistorialController::class, 'registrar'])->name('registrar');
+});
+
+// Rutas de Bricks
+Route::prefix('bricks')->name('bricks.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\BrickController::class, 'index'])->name('index');
+    
+    // Rutas de reasignación de bricks (API para modal)
+    Route::get('/reasignacion/get-bricks', [\App\Http\Controllers\BrickReasignacionController::class, 'getBricksGeosegmento'])->name('reasignacion.get-bricks');
+    Route::get('/reasignacion/get-destinos', [\App\Http\Controllers\BrickReasignacionController::class, 'getGeosegmentosDestino'])->name('reasignacion.get-destinos');
+    Route::post('/reasignacion/reasignar', [\App\Http\Controllers\BrickReasignacionController::class, 'reasignarBricks'])->name('reasignacion.reasignar');
 });
 
 }); // Fin del grupo de rutas protegidas

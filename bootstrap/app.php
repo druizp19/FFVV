@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Middleware global para auto-login SSO - DEBE IR PRIMERO
+        $middleware->prepend(\App\Http\Middleware\SSOAutoLoginMiddleware::class);
+        
         $middleware->alias([
             'azure.auth' => \App\Http\Middleware\AzureAuthMiddleware::class,
             'admin.auth' => \App\Http\Middleware\AdminMiddleware::class,

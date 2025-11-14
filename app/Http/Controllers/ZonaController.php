@@ -212,7 +212,7 @@ class ZonaController extends Controller
                     'zona' => $zona->zona,
                     'idEstado' => $zona->idEstado
                 ],
-                'idUsuario' => auth()->id(),
+                'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
             ]);
         }
@@ -257,7 +257,7 @@ class ZonaController extends Controller
                     'zona' => $zona->zona,
                     'idEstado' => $zona->idEstado
                 ],
-                'idUsuario' => auth()->id(),
+                'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
             ]);
         }
@@ -294,7 +294,7 @@ class ZonaController extends Controller
                     'descripcion' => sprintf('Se desactivó la zona "%s"', $zona->zona),
                     'datosAnteriores' => ['idEstado' => $zona->idEstado],
                     'datosNuevos' => ['idEstado' => 0],
-                    'idUsuario' => auth()->id(),
+                    'usuario' => session('azure_user')['name'] ?? 'Sistema',
                     'fechaHora' => now(),
                 ]);
             }
@@ -486,7 +486,7 @@ class ZonaController extends Controller
                 ),
                 'datosAnteriores' => ['idEstado' => 1],
                 'datosNuevos' => ['idEstado' => 0],
-                'idUsuario' => auth()->id(),
+                'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
             ]);
 
@@ -606,7 +606,7 @@ class ZonaController extends Controller
                     'idCiclo' => $request->idCiclo,
                     'idEstado' => 1
                 ],
-                'idUsuario' => auth()->id(),
+                'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
             ]);
 
@@ -733,7 +733,7 @@ class ZonaController extends Controller
                     'idCiclo' => $request->idCiclo,
                     'idEstado' => 1
                 ],
-                'idUsuario' => auth()->id(),
+                'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
             ]);
 
@@ -818,7 +818,7 @@ class ZonaController extends Controller
                 ),
                 'datosAnteriores' => ['idEstado' => 1],
                 'datosNuevos' => ['idEstado' => 0],
-                'idUsuario' => auth()->id(),
+                'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
             ]);
 
@@ -896,7 +896,7 @@ class ZonaController extends Controller
                 ),
                 'datosAnteriores' => ['idEstado' => 0],
                 'datosNuevos' => ['idEstado' => 1],
-                'idUsuario' => auth()->id(),
+                'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
             ]);
 
@@ -1007,4 +1007,5 @@ class ZonaController extends Controller
         }
     }
 }
+
 

@@ -2359,3 +2359,205 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================
+   Modal Asignar Ubigeos - Diseño Horizontal
+   ============================================ */
+
+/* Estilos específicos para modal de ubigeos */
+#assignUbigeosModal.modal {
+    display: none;
+}
+
+#assignUbigeosModal.modal.active {
+    display: flex;
+}
+
+#assignUbigeosModal .modal-content {
+    max-width: 1400px;
+    width: 95%;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow: hidden;
+}
+
+#assignUbigeosModal.modal.active .modal-content {
+    animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+#assignUbigeosModal .modal-header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border-primary);
+    flex-shrink: 0;
+}
+
+#assignUbigeosModal .modal-body-horizontal {
+    display: flex;
+    gap: 24px;
+    padding: 24px 28px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Panel Izquierdo - Sidebar */
+#assignUbigeosModal .modal-sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#assignUbigeosModal .sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Resumen de Selección */
+#assignUbigeosModal .selection-summary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(240, 53, 53, 0.05) 0%, rgba(126, 79, 235, 0.05) 50%, rgba(1, 98, 255, 0.05) 100%);
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    transition: all 0.3s;
+}
+
+#assignUbigeosModal .selection-summary:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+#assignUbigeosModal .summary-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f03535ff 0%, #7e4febff 50%, #0162ffff 100%);
+    border-radius: 12px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+#assignUbigeosModal .summary-icon svg {
+    width: 24px;
+    height: 24px;
+    color: white;
+}
+
+#assignUbigeosModal .summary-content {
+    flex: 1;
+}
+
+#assignUbigeosModal .summary-count {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+#assignUbigeosModal .summary-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* Panel Derecho - Contenido Principal */
+#assignUbigeosModal .modal-main-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#assignUbigeosModal .ubigeos-list-container {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    background: var(--bg-tertiary);
+}
+
+#assignUbigeosModal .modal-footer {
+    padding: 16px 28px;
+    border-top: 1px solid var(--border-primary);
+    flex-shrink: 0;
+}
+
+/* Responsive para Modal Horizontal */
+@media (max-width: 1200px) {
+    #assignUbigeosModal .modal-content {
+        max-width: 95%;
+    }
+
+    #assignUbigeosModal .modal-sidebar {
+        width: 280px;
+    }
+}
+
+@media (max-width: 900px) {
+    #assignUbigeosModal .modal-body-horizontal {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    #assignUbigeosModal .modal-sidebar {
+        width: 100%;
+    }
+
+    #assignUbigeosModal .ubigeos-list-container {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 640px) {
+    #assignUbigeosModal .modal-content {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+        max-height: 100vh;
+    }
+
+    #assignUbigeosModal .modal-body-horizontal {
+        padding: 16px;
+        gap: 16px;
+    }
+
+    #assignUbigeosModal .modal-header {
+        padding: 16px 20px;
+    }
+
+    #assignUbigeosModal .modal-footer {
+        padding: 12px 20px;
+    }
+
+    #assignUbigeosModal .selection-summary {
+        padding: 16px;
+    }
+
+    #assignUbigeosModal .summary-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    #assignUbigeosModal .summary-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    #assignUbigeosModal .summary-count {
+        font-size: 24px;
+    }
+}

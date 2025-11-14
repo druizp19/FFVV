@@ -29,36 +29,13 @@ class DashboardController extends Controller
         
         $data = $this->dashboardService->getDashboardData($idCiclo);
         $ciclos = Ciclo::with('estado')->orderBy('idCiclo', 'desc')->get();
-        
+
         return view('dashboard.index', array_merge($data, [
             'ciclos' => $ciclos,
-            'cicloSeleccionado' => $idCiclo
+            'cicloSeleccionado' => $idCiclo,
         ]));
     }
 
-    /**
-     * Obtiene datos para gráficas (AJAX).
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function getChartData(Request $request): JsonResponse
-    {
-        $tipo = $request->input('tipo');
-        $idCiclo = $request->input('ciclo');
-
-        $data = match($tipo) {
-            'empleados' => $this->dashboardService->getChartEmpleadosPorZona($idCiclo),
-            'geosegmentos' => $this->dashboardService->getChartGeosegmentosPorZona($idCiclo),
-            'acciones' => $this->dashboardService->getChartAcciones($idCiclo),
-            default => []
-        };
-
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
-    }
 
     /**
      * Obtiene estadísticas de un ciclo específico.

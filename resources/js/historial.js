@@ -94,7 +94,7 @@ function renderDetalles(historial) {
                 ${historial.usuario ? `
                 <div class="detalle-item">
                     <span class="detalle-label">Usuario:</span>
-                    <span class="detalle-value">${historial.usuario.name}</span>
+                    <span class="detalle-value">${historial.usuario}</span>
                 </div>
                 ` : ''}
             </div>

@@ -266,6 +266,17 @@ class CicloService
             // 5. CLONAR FUERZA DE VENTA (con los nuevos IDs de productos)
             $this->clonarFuerzaVenta($cicloOriginal, $cicloNuevo, $mapeoProductos);
 
+            // 6. CREAR/OBTENER PERIODO Y PERIODO-CICLO
+            $periodoCicloNuevo = $this->crearPeriodoCiclo($cicloNuevo);
+            
+            // 7. CLONAR UBIGEO-PERIODO
+            if ($periodoCicloNuevo) {
+                $this->clonarUbigeoPeriodo($cicloOriginal, $periodoCicloNuevo);
+                
+                // 8. CLONAR BRICK-GEOSEGMENTO
+                $this->clonarBrickGeosegmento($cicloOriginal, $periodoCicloNuevo);
+            }
+
             DB::commit();
 
             Log::info("Clonación completada exitosamente. Ciclo {$cicloNuevo->idCiclo} creado con todas sus relaciones.");
@@ -518,6 +529,171 @@ class CicloService
 
         // Crear nuevo ciclo con las nuevas fechas (sin clonar relaciones)
         return $this->crearCiclo($nuevasFechas);
+    }
+
+    /**
+     * Crea o obtiene el periodo basado en la fechaFin del ciclo y crea el registro en PERIODO_CICLO.
+     *
+     * @param Ciclo $cicloNuevo
+     * @return object|null El registro de PERIODO_CICLO creado
+     */
+    protected function crearPeriodoCiclo(Ciclo $cicloNuevo): ?object
+    {
+        try {
+            // Extraer año y mes de la fechaFin del ciclo
+            $fechaFin = Carbon::parse($cicloNuevo->fechaFin);
+            $anio = $fechaFin->format('Y');
+            $mes = $fechaFin->format('m');
+
+            Log::info("Buscando/creando periodo para año: {$anio}, mes: {$mes}");
+
+            // Buscar o crear el periodo
+            $periodo = DB::table('ODS.TAB_PERIODO')
+                ->where('anio', $anio)
+                ->where('mes', $mes)
+                ->first();
+
+            if (!$periodo) {
+                // Crear el periodo si no existe
+                $idPeriodo = DB::table('ODS.TAB_PERIODO')->insertGetId([
+                    'anio' => $anio,
+                    'mes' => $mes,
+                    'idEstado' => 1
+                ]);
+                
+                Log::info("Periodo creado con ID: {$idPeriodo}");
+            } else {
+                $idPeriodo = $periodo->idPeriodo;
+                Log::info("Periodo encontrado con ID: {$idPeriodo}");
+            }
+
+            // Crear el registro en PERIODO_CICLO
+            $idPeriodoCiclo = DB::table('ODS.TAB_PERIODO_CICLO')->insertGetId([
+                'idPeriodo' => $idPeriodo,
+                'idCiclo' => $cicloNuevo->idCiclo,
+                'idEstado' => 1
+            ]);
+
+            Log::info("PeriodoCiclo creado con ID: {$idPeriodoCiclo}");
+
+            // Retornar el registro completo
+            return DB::table('ODS.TAB_PERIODO_CICLO')
+                ->where('idPeriodoCiclo', $idPeriodoCiclo)
+                ->first();
+
+        } catch (\Exception $e) {
+            Log::error("Error al crear PeriodoCiclo: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Clona todos los registros de UBIGEO_PERIODO del ciclo anterior al nuevo periodo-ciclo.
+     *
+     * @param Ciclo $cicloOriginal
+     * @param object $periodoCicloNuevo
+     * @return void
+     */
+    protected function clonarUbigeoPeriodo(Ciclo $cicloOriginal, object $periodoCicloNuevo): void
+    {
+        try {
+            // Obtener el periodo-ciclo del ciclo original
+            $periodoCicloOriginal = DB::table('ODS.TAB_PERIODO_CICLO')
+                ->where('idCiclo', $cicloOriginal->idCiclo)
+                ->where('idEstado', 1)
+                ->first();
+
+            if (!$periodoCicloOriginal) {
+                Log::warning("No se encontró periodo-ciclo para el ciclo original {$cicloOriginal->idCiclo}");
+                return;
+            }
+
+            $totalClonados = 0;
+
+            // Clonar en chunks para evitar problemas de memoria
+            DB::table('ODS.TAB_UBIGEO_PERIODO')
+                ->where('idPeriodoCiclo', $periodoCicloOriginal->idPeriodoCiclo)
+                ->orderBy('id')
+                ->chunk(500, function ($ubigeosOriginales) use ($periodoCicloNuevo, &$totalClonados) {
+                    $ubigeosParaInsertar = [];
+
+                    foreach ($ubigeosOriginales as $ubigeo) {
+                        $ubigeosParaInsertar[] = [
+                            'idUbigeo' => $ubigeo->idUbigeo,
+                            'idGeosegmento' => $ubigeo->idGeosegmento,
+                            'idPeriodoCiclo' => $periodoCicloNuevo->idPeriodoCiclo
+                        ];
+                    }
+
+                    if (!empty($ubigeosParaInsertar)) {
+                        DB::table('ODS.TAB_UBIGEO_PERIODO')->insert($ubigeosParaInsertar);
+                        $totalClonados += count($ubigeosParaInsertar);
+                    }
+                });
+
+            Log::info("UbigeoPeriodo clonados: {$totalClonados}");
+
+        } catch (\Exception $e) {
+            Log::error("Error al clonar UbigeoPeriodo: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Clona todos los registros de BRICK_GEOSEGMENTO del ciclo anterior al nuevo periodo-ciclo.
+     *
+     * @param Ciclo $cicloOriginal
+     * @param object $periodoCicloNuevo
+     * @return void
+     */
+    protected function clonarBrickGeosegmento(Ciclo $cicloOriginal, object $periodoCicloNuevo): void
+    {
+        try {
+            // Obtener el periodo-ciclo del ciclo original
+            $periodoCicloOriginal = DB::table('ODS.TAB_PERIODO_CICLO')
+                ->where('idCiclo', $cicloOriginal->idCiclo)
+                ->where('idEstado', 1)
+                ->first();
+
+            if (!$periodoCicloOriginal) {
+                Log::warning("No se encontró periodo-ciclo para el ciclo original {$cicloOriginal->idCiclo}");
+                return;
+            }
+
+            $totalClonados = 0;
+
+            // Clonar en chunks para evitar problemas de memoria
+            // Solo se clonan los registros con estado activo (idEstado = 1)
+            DB::table('ODS.TAB_BRICK_GEOSEGMENTO')
+                ->where('idPeriodoCiclo', $periodoCicloOriginal->idPeriodoCiclo)
+                ->where('idEstado', 1) // Solo copiar registros activos
+                ->orderBy('idBrickGeosegmento')
+                ->chunk(500, function ($bricksOriginales) use ($periodoCicloNuevo, &$totalClonados) {
+                    $bricksParaInsertar = [];
+
+                    foreach ($bricksOriginales as $brick) {
+                        $bricksParaInsertar[] = [
+                            'idBrick' => $brick->idBrick,
+                            'idCanal' => $brick->idCanal,
+                            'idGeosegmento' => $brick->idGeosegmento,
+                            'idPeriodoCiclo' => $periodoCicloNuevo->idPeriodoCiclo,
+                            'fechaProceso' => $brick->fechaProceso,
+                            'idEstado' => $brick->idEstado
+                        ];
+                    }
+
+                    if (!empty($bricksParaInsertar)) {
+                        DB::table('ODS.TAB_BRICK_GEOSEGMENTO')->insert($bricksParaInsertar);
+                        $totalClonados += count($bricksParaInsertar);
+                    }
+                });
+
+            Log::info("BrickGeosegmento clonados: {$totalClonados}");
+
+        } catch (\Exception $e) {
+            Log::error("Error al clonar BrickGeosegmento: " . $e->getMessage());
+            throw $e;
+        }
     }
 }
 

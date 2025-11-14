@@ -16,6 +16,7 @@ export default defineConfig({
                 'resources/css/productos.css',
                 'resources/css/historial.css',
                 'resources/css/dashboard.css',
+                'resources/css/bricks.css',
                 'resources/js/app.js',
                 'resources/js/sidebar.js',
                 'resources/js/empleados.js',
@@ -23,10 +24,32 @@ export default defineConfig({
                 'resources/js/ciclos.js',
                 'resources/js/productos.js',
                 'resources/js/historial.js',
-                'resources/js/dashboard.js'
+                'resources/js/dashboard.js',
+                'resources/js/bricks-reasignacion.js',
+                'resources/js/geosegmentos.js',
+                'resources/css/bricks-reasignacion.css',
+                'resources/css/bricks-alerts.css'
             ],
             refresh: true,
         }),
         tailwindcss(),
     ],
+    build: {
+        // Deshabilitar source maps en producción
+        sourcemap: false,
+        // Minificar código
+        minify: 'terser',
+        terserOptions: {
+            compress: {
+                drop_console: true, // Eliminar console.log en producción
+                drop_debugger: true, // Eliminar debugger en producción
+            },
+        },
+        // Optimizar chunks
+        rollupOptions: {
+            output: {
+                manualChunks: undefined,
+            },
+        },
+    },
 });

@@ -31,54 +31,7 @@ class DashboardRepository
         ];
     }
 
-    /**
-     * Obtiene la distribución de empleados por zona para el ciclo actual.
-     *
-     * @param int|null $idCiclo
-     * @return array
-     */
-    public function getEmpleadosPorZona(?int $idCiclo = null): array
-    {
-        $query = DB::table('ODS.TAB_ZONAEMP as ze')
-            ->join('ODS.TAB_ZONA as z', 'ze.idZona', '=', 'z.idZona')
-            ->where('ze.idEstado', 1)
-            ->where('z.idEstado', 1)
-            ->select('z.zona', DB::raw('COUNT(DISTINCT ze.idEmpleado) as total'))
-            ->groupBy('z.zona')
-            ->orderBy('total', 'desc')
-            ->limit(10);
-
-        if ($idCiclo) {
-            $query->where('ze.idCiclo', $idCiclo);
-        }
-
-        return $query->get()->toArray();
-    }
-
-    /**
-     * Obtiene la distribución de geosegmentos por zona.
-     *
-     * @param int|null $idCiclo
-     * @return array
-     */
-    public function getGeosegmentosPorZona(?int $idCiclo = null): array
-    {
-        $query = DB::table('ODS.TAB_ZONAGEO as zg')
-            ->join('ODS.TAB_ZONA as z', 'zg.idZona', '=', 'z.idZona')
-            ->where('zg.idEstado', 1)
-            ->where('z.idEstado', 1)
-            ->select('z.zona', DB::raw('COUNT(DISTINCT zg.idGeosegmento) as total'))
-            ->groupBy('z.zona')
-            ->orderBy('total', 'desc')
-            ->limit(10);
-
-        if ($idCiclo) {
-            $query->where('zg.idCiclo', $idCiclo);
-        }
-
-        return $query->get()->toArray();
-    }
-
+    
     /**
      * Obtiene la actividad reciente del historial.
      *
@@ -87,7 +40,7 @@ class DashboardRepository
      */
     public function getActividadReciente(int $limit = 10): array
     {
-        return Historial::with(['ciclo', 'usuario'])
+        return Historial::with(['ciclo'])
             ->orderBy('fechaHora', 'desc')
             ->limit($limit)
             ->get()
@@ -185,4 +138,5 @@ class DashboardRepository
             'actividad' => Historial::where('idCiclo', $idCiclo)->count(),
         ];
     }
+
 }
