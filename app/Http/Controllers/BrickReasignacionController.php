@@ -241,8 +241,8 @@ class BrickReasignacionController extends Controller
                 $geosegmentoOrigenDesactivado = true;
             }
 
-            // Registrar en el historial
-            \App\Models\Historial::create([
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*\App\Models\Historial::create([
                 'idCiclo' => $periodoCiclo->idCiclo,
                 'entidad' => 'BrickGeosegmento',
                 'idEntidad' => $validated['idGeosegmentoOrigen'],
@@ -264,7 +264,7 @@ class BrickReasignacionController extends Controller
                 ],
                 'usuario' => session('azure_user.name') ?? 'Sistema',
                 'fechaHora' => now(),
-            ]);
+            ]);*/
 
             DB::commit();
 

@@ -236,8 +236,8 @@ class BrickController extends Controller
                 }
             }
 
-            // Registrar en el historial
-            \App\Models\Historial::create([
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*\App\Models\Historial::create([
                 'idCiclo' => $cicloAbierto->idCiclo,
                 'entidad' => 'BrickGeosegmento',
                 'idEntidad' => $validated['idBrick'],
@@ -260,7 +260,7 @@ class BrickController extends Controller
                 ],
                 'usuario' => session('azure_user.name') ?? 'Sistema',
                 'fechaHora' => now(),
-            ]);
+            ]);*/
 
             if ($insertados > 0) {
                 $mensaje = "Brick asignado exitosamente para {$insertados} canal(es).";

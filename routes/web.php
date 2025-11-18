@@ -107,6 +107,9 @@ Route::prefix('zonas')->name('zonas.')->group(function () {
     // Agregar empleado a una zona
     Route::post('/{id}/empleados', [ZonaController::class, 'addEmpleadoToZone'])->name('empleados.add');
     
+    // Agregar representante médico a una zona
+    Route::post('/{id}/representantes', [ZonaController::class, 'addRepresentanteToZone'])->name('representantes.add');
+    
     // Agregar geosegmento a una zona
     Route::post('/{id}/geosegmentos', [ZonaController::class, 'addGeosegmentToZone'])->name('geosegmentos.add');
 });

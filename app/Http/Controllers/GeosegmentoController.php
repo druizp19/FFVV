@@ -320,8 +320,8 @@ class GeosegmentoController extends Controller
                 $message[] = "{$skippedCount} ya estaban asignados";
             }
 
-            // Registrar en el historial
-            if ($updatedCount > 0) {
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*if ($updatedCount > 0) {
                 $azureUser = session('azure_user');
                 $nombreUsuario = $azureUser['name'] ?? 'Sistema';
                 
@@ -343,7 +343,7 @@ class GeosegmentoController extends Controller
                     'usuario' => $nombreUsuario,
                     'fechaHora' => now(),
                 ]);
-            }
+            }*/
 
             return response()->json([
                 'success' => true,

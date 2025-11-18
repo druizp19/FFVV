@@ -203,7 +203,8 @@ class ZonaController extends Controller
         if ($result['success'] && isset($result['data'])) {
             $zona = $result['data'];
             
-            try {
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*try {
                 \App\Models\Historial::create([
                     'idCiclo' => getActiveCicloId(),
                     'entidad' => 'Zona',
@@ -219,7 +220,7 @@ class ZonaController extends Controller
                 ]);
             } catch (\Exception $e) {
                 \Log::debug('No se pudo registrar en historial: ' . $e->getMessage());
-            }
+            }*/
         }
 
         return response()->json($result, $result['success'] ? 201 : 400);
@@ -252,7 +253,8 @@ class ZonaController extends Controller
         if ($result['success'] && isset($result['data'])) {
             $zona = $result['data'];
             
-            try {
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*try {
                 \App\Models\Historial::create([
                     'idCiclo' => getActiveCicloId(),
                     'entidad' => 'Zona',
@@ -269,7 +271,7 @@ class ZonaController extends Controller
                 ]);
             } catch (\Exception $e) {
                 \Log::debug('No se pudo registrar en historial: ' . $e->getMessage());
-            }
+            }*/
         }
 
         return response()->json($result, $result['success'] ? 200 : 400);
@@ -296,7 +298,8 @@ class ZonaController extends Controller
             
             // Registrar en el historial
             if ($zona) {
-                try {
+                // HISTORIAL DESACTIVADO TEMPORALMENTE
+                /*try {
                     \App\Models\Historial::create([
                         'idCiclo' => getActiveCicloId(),
                         'entidad' => 'Zona',
@@ -310,7 +313,7 @@ class ZonaController extends Controller
                     ]);
                 } catch (\Exception $e) {
                     \Log::debug('No se pudo registrar en historial: ' . $e->getMessage());
-                }
+                }*/
             }
         }
 
@@ -328,6 +331,7 @@ class ZonaController extends Controller
     {
         $cicloId = $request->get('ciclo');
         
+        // Obtener supervisores (de TAB_ZONAEMP)
         $zona = \App\Models\Zona::with([
             'zonasEmpleados' => function ($q) use ($cicloId) {
                 $q->where('idEstado', 1);
@@ -347,9 +351,67 @@ class ZonaController extends Controller
             ], 404);
         }
 
+        // Obtener representantes médicos (de TAB_FUERZAVENTA)
+        $representantes = collect();
+        
+        foreach ($zona->zonasEmpleados as $zonaEmp) {
+            // Buscar representantes médicos asociados a este supervisor en TAB_FUERZAVENTA
+            $repsQuery = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_EMPLEADO as e', 'fv.idEmpleado', '=', 'e.idEmpleado')
+                ->leftJoin('ODS.TAB_CARGO as c', 'e.idCargo', '=', 'c.idCargo')
+                ->where('fv.idZonaEmp', $zonaEmp->idZonaEmp)
+                ->where('fv.idEstado', 1);
+            
+            if ($cicloId) {
+                $repsQuery->where('fv.idCiclo', $cicloId);
+            }
+            
+            $reps = $repsQuery->select(
+                \DB::raw('MIN(fv.idFuerza) as idFuerza'),
+                'fv.idEmpleado',
+                'e.nombre',
+                'e.apeNombre',
+                'e.correo',
+                'c.cargo',
+                'fv.idZonaEmp'
+            )
+            ->groupBy('fv.idEmpleado', 'e.nombre', 'e.apeNombre', 'e.correo', 'c.cargo', 'fv.idZonaEmp') // Agrupar por empleado
+            ->get();
+            
+            foreach ($reps as $rep) {
+                $representantes->push([
+                    'idFuerza' => $rep->idFuerza,
+                    'idEmpleado' => $rep->idEmpleado,
+                    'nombre' => trim(($rep->nombre ?? '') . ' ' . ($rep->apeNombre ?? '')),
+                    'correo' => $rep->correo,
+                    'cargo' => $rep->cargo ?? 'Representante Médico',
+                    'tipo' => 'representante',
+                    'idZonaEmp' => $rep->idZonaEmp,
+                    'supervisor' => $zonaEmp->empleado->nombre ?? 'N/A'
+                ]);
+            }
+        }
+
+        // Formatear supervisores
+        $supervisores = $zona->zonasEmpleados->map(function ($zonaEmp) {
+            return [
+                'idZonaEmp' => $zonaEmp->idZonaEmp,
+                'idEmpleado' => $zonaEmp->idEmpleado,
+                'nombre' => $zonaEmp->empleado->nombre ?? 'N/A',
+                'correo' => $zonaEmp->empleado->correo ?? 'N/A',
+                'cargo' => $zonaEmp->empleado->cargo->cargo ?? 'Supervisor',
+                'tipo' => 'supervisor',
+                'ciclo' => $zonaEmp->ciclo->ciclo ?? 'N/A',
+                'estado' => $zonaEmp->estado->estado ?? 'N/A'
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $zona->zonasEmpleados
+            'data' => [
+                'supervisores' => $supervisores,
+                'representantes' => $representantes
+            ]
         ]);
     }
 
@@ -487,8 +549,8 @@ class ZonaController extends Controller
             $zonaGeo->idEstado = 0;
             $zonaGeo->save();
 
-            // Registrar en el historial
-            \App\Models\Historial::create([
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*\App\Models\Historial::create([
                 'idCiclo' => $zonaGeo->idCiclo,
                 'entidad' => 'ZonaGeosegmento',
                 'idEntidad' => $zonaGeo->idZonaGeo,
@@ -502,7 +564,7 @@ class ZonaController extends Controller
                 'datosNuevos' => ['idEstado' => 0],
                 'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
-            ]);
+            ]);*/
 
             return response()->json([
                 'success' => true,
@@ -603,8 +665,8 @@ class ZonaController extends Controller
             // Cargar relaciones para el historial
             $zonaEmp->load(['zona', 'empleado']);
 
-            // Registrar en el historial
-            \App\Models\Historial::create([
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*\App\Models\Historial::create([
                 'idCiclo' => $request->idCiclo,
                 'entidad' => 'ZonaEmpleado',
                 'idEntidad' => $zonaEmp->idZonaEmp,
@@ -622,7 +684,7 @@ class ZonaController extends Controller
                 ],
                 'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
-            ]);
+            ]);*/
 
             return response()->json([
                 'success' => true,
@@ -639,6 +701,120 @@ class ZonaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al agregar el empleado: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Agrega un representante médico a una zona (inserta en TAB_FUERZAVENTA).
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function addRepresentanteToZone(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'idEmpleado' => 'required|integer',
+                'idZonaEmp' => 'required|integer',
+                'idCiclo' => 'required|integer',
+                'idProducto' => 'nullable|integer'
+            ]);
+
+            // Verificar si la zona existe
+            $zona = \App\Models\Zona::find($id);
+            if (!$zona) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zona no encontrada.'
+                ], 404);
+            }
+
+            // Verificar si el ciclo está cerrado
+            $ciclo = \App\Models\Ciclo::find($request->idCiclo);
+            if ($ciclo) {
+                $esCerrado = false;
+                
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            // Verificar si ya existe la relación
+            $existingRelation = \DB::table('ODS.TAB_FUERZAVENTA')
+                ->where('idZonaEmp', $request->idZonaEmp)
+                ->where('idEmpleado', $request->idEmpleado)
+                ->where('idCiclo', $request->idCiclo)
+                ->first();
+
+            if ($existingRelation) {
+                if ($existingRelation->idEstado == 0) {
+                    // Si existe pero está inactivo, reactivarlo
+                    \DB::table('ODS.TAB_FUERZAVENTA')
+                        ->where('idFuerza', $existingRelation->idFuerza)
+                        ->update(['idEstado' => 1]);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Representante reactivado exitosamente.'
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Este representante ya está asignado a esta zona.'
+                    ], 400);
+                }
+            }
+
+            // Calcular periodo de comisión basado en la fecha de inicio del ciclo
+            $fechaInicioCiclo = \Carbon\Carbon::parse($ciclo->fechaInicio);
+            $periodoComision = $fechaInicioCiclo->format('Ym');
+
+            // Crear nueva relación en TAB_FUERZAVENTA
+            $idFuerza = \DB::table('ODS.TAB_FUERZAVENTA')->insertGetId([
+                'idCiclo' => $request->idCiclo,
+                'idZonaEmp' => $request->idZonaEmp,
+                'idProducto' => $request->idProducto,
+                'idEmpleado' => $request->idEmpleado,
+                'fechaModificacion' => now(),
+                'fechaCierre' => null,
+                'idEstado' => 1,
+                'periodoComision' => $periodoComision
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Representante médico agregado exitosamente.',
+                'idFuerza' => $idFuerza
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de entrada inválidos.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al agregar el representante: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -730,8 +906,8 @@ class ZonaController extends Controller
             // Cargar relaciones para el historial
             $zonaGeo->load(['zona', 'geosegmento']);
 
-            // Registrar en el historial
-            \App\Models\Historial::create([
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*\App\Models\Historial::create([
                 'idCiclo' => $request->idCiclo,
                 'entidad' => 'ZonaGeosegmento',
                 'idEntidad' => $zonaGeo->idZonaGeo,
@@ -749,7 +925,7 @@ class ZonaController extends Controller
                 ],
                 'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
-            ]);
+            ]);*/
 
             return response()->json([
                 'success' => true,
@@ -819,8 +995,8 @@ class ZonaController extends Controller
             $zonaEmp->idEstado = 0;
             $zonaEmp->save();
 
-            // Registrar en el historial
-            \App\Models\Historial::create([
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*\App\Models\Historial::create([
                 'idCiclo' => $zonaEmp->idCiclo,
                 'entidad' => 'ZonaEmpleado',
                 'idEntidad' => $zonaEmp->idZonaEmp,
@@ -834,7 +1010,7 @@ class ZonaController extends Controller
                 'datosNuevos' => ['idEstado' => 0],
                 'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
-            ]);
+            ]);*/
 
             return response()->json([
                 'success' => true,
@@ -897,8 +1073,8 @@ class ZonaController extends Controller
             $zonaGeo->idEstado = 1;
             $zonaGeo->save();
 
-            // Registrar en el historial
-            \App\Models\Historial::create([
+            // HISTORIAL DESACTIVADO TEMPORALMENTE
+            /*\App\Models\Historial::create([
                 'idCiclo' => $zonaGeo->idCiclo,
                 'entidad' => 'ZonaGeosegmento',
                 'idEntidad' => $zonaGeo->idZonaGeo,
@@ -912,7 +1088,7 @@ class ZonaController extends Controller
                 'datosNuevos' => ['idEstado' => 1],
                 'usuario' => session('azure_user')['name'] ?? 'Sistema',
                 'fechaHora' => now(),
-            ]);
+            ]);*/
 
             return response()->json([
                 'success' => true,
@@ -973,13 +1149,87 @@ class ZonaController extends Controller
                 ], 404);
             }
 
-            // Formatear empleados
-            $empleados = $zona->zonasEmpleados->map(function ($ze) {
+            // Formatear supervisores
+            $supervisores = $zona->zonasEmpleados->map(function ($ze) {
                 return [
                     'id' => $ze->idZonaEmp,
-                    'nombre' => $ze->empleado->nombre ?? 'Sin nombre'
+                    'nombre' => $ze->empleado->nombre ?? 'Sin nombre',
+                    'tipo' => 'supervisor',
+                    'cargo' => $ze->empleado->cargo->cargo ?? 'Supervisor'
                 ];
             });
+
+            // Obtener representantes médicos de TAB_FUERZAVENTA
+            $representantes = collect();
+            
+            \Log::error('DEBUG: Buscando representantes para zona', [
+                'idZona' => $id,
+                'cicloId' => $cicloId,
+                'supervisores_count' => $zona->zonasEmpleados->count()
+            ]);
+            
+            foreach ($zona->zonasEmpleados as $zonaEmp) {
+                \Log::error('DEBUG: Buscando representantes para supervisor', [
+                    'idZonaEmp' => $zonaEmp->idZonaEmp,
+                    'supervisor' => $zonaEmp->empleado->nombre ?? 'N/A'
+                ]);
+                
+                $repsQuery = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                    ->join('ODS.TAB_EMPLEADO as e', 'fv.idEmpleado', '=', 'e.idEmpleado')
+                    ->leftJoin('ODS.TAB_CARGO as c', 'e.idCargo', '=', 'c.idCargo')
+                    ->where('fv.idZonaEmp', $zonaEmp->idZonaEmp)
+                    ->where('fv.idEstado', 1);
+                
+                if ($cicloId) {
+                    $repsQuery->where('fv.idCiclo', $cicloId);
+                }
+                
+                // Log de la query SQL
+                \Log::error('DEBUG: Query SQL', [
+                    'sql' => $repsQuery->toSql(),
+                    'bindings' => [
+                        'idZonaEmp' => $zonaEmp->idZonaEmp,
+                        'idEstado' => 1,
+                        'idCiclo' => $cicloId
+                    ]
+                ]);
+                
+                $reps = $repsQuery->select(
+                    \DB::raw('MIN(fv.idFuerza) as idFuerza'),
+                    'fv.idEmpleado',
+                    'e.nombre',
+                    'e.apeNombre',
+                    'c.cargo'
+                )
+                ->groupBy('fv.idEmpleado', 'e.nombre', 'e.apeNombre', 'c.cargo') // Agrupar por empleado
+                ->get();
+                
+                \Log::error('DEBUG: Representantes encontrados', [
+                    'idZonaEmp' => $zonaEmp->idZonaEmp,
+                    'count' => $reps->count(),
+                    'representantes' => $reps->toArray()
+                ]);
+                
+                foreach ($reps as $rep) {
+                    $representantes->push([
+                        'id' => $rep->idFuerza,
+                        'nombre' => trim(($rep->nombre ?? '') . ' ' . ($rep->apeNombre ?? '')),
+                        'tipo' => 'representante',
+                        'cargo' => $rep->cargo ?? 'Representante Médico',
+                        'supervisor' => $zonaEmp->empleado->nombre ?? 'N/A'
+                    ]);
+                }
+            }
+
+            // Combinar supervisores y representantes
+            $empleados = $supervisores->concat($representantes);
+            
+            \Log::error('DEBUG: Total empleados', [
+                'supervisores' => $supervisores->count(),
+                'representantes' => $representantes->count(),
+                'total' => $empleados->count(),
+                'empleados_array' => $empleados->toArray()
+            ]);
 
             // Formatear geosegmentos
             $geosegmentos = $zona->zonasGeosegmentos->map(function ($zg) {

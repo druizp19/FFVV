@@ -295,6 +295,8 @@ window.executeConfirmAction = async function () {
         await removeGeosegmentoFromZone(pendingAction.geoId);
     } else if (pendingAction.type === 'addEmpleados') {
         await addMultipleEmpleadosToZone(pendingAction.empIds);
+    } else if (pendingAction.type === 'addRepresentantes') {
+        await addMultipleRepresentantesToZone(pendingAction.empIds, pendingAction.idZonaEmp);
     } else if (pendingAction.type === 'removeEmpleado') {
         await removeEmpleadoFromZone(pendingAction.empId);
     }
@@ -429,15 +431,28 @@ function buildDetailsHTML(zona) {
                     </div>
                     <div class="zone-column-content">
                         ${empleados.length > 0 ? empleados.map(emp => `
-                            <div class="zone-employee-item">
+                            <div class="zone-employee-item ${emp.tipo === 'representante' ? 'representante' : 'supervisor'}">
                                 <div class="zone-employee-icon">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                                        <circle cx="12" cy="7" r="4"></circle>
+                                        ${emp.tipo === 'supervisor' ? `
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="9" cy="7" r="4"></circle>
+                                            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                        ` : `
+                                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="12" cy="7" r="4"></circle>
+                                        `}
                                     </svg>
                                 </div>
-                                <span class="zone-employee-name">${emp.nombre}</span>
-                                ${!esCerrado ? `
+                                <div class="zone-employee-info">
+                                    <span class="zone-employee-name">${emp.nombre}</span>
+                                    <span class="zone-employee-badge">${emp.cargo || emp.tipo}</span>
+                                    ${emp.tipo === 'representante' && emp.supervisor ? `
+                                        <span class="zone-employee-supervisor">Supervisor: ${emp.supervisor}</span>
+                                    ` : ''}
+                                </div>
+                                ${!esCerrado && emp.tipo === 'supervisor' ? `
                                     <button class="zone-geo-remove" onclick="confirmRemoveEmpleado(${emp.id}, '${emp.nombre}')" title="Quitar">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -585,17 +600,63 @@ async function removeGeosegmentoFromZone(geoId) {
 // ==========================================
 
 let selectedEmpleados = [];
+let currentZonaSupervisores = [];
 
 window.openAddEmpleadoModal = function () {
     const modal = document.getElementById('addEmpleadoModal');
     const searchInput = document.getElementById('empSearchInput');
+    const tipoEmpleado = document.getElementById('tipoEmpleado');
 
     selectedEmpleados = [];
     searchInput.value = '';
+    tipoEmpleado.value = 'supervisor';
+    
+    // Cargar supervisores de la zona actual
+    loadZonaSupervisores();
+    
+    handleTipoEmpleadoChange();
     loadEmpleados();
 
     modal.classList.remove('closing');
     modal.classList.add('active');
+}
+
+window.handleTipoEmpleadoChange = function() {
+    const tipoEmpleado = document.getElementById('tipoEmpleado').value;
+    const supervisorGroup = document.getElementById('supervisorGroup');
+    
+    if (tipoEmpleado === 'representante') {
+        supervisorGroup.style.display = 'block';
+    } else {
+        supervisorGroup.style.display = 'none';
+    }
+}
+
+async function loadZonaSupervisores() {
+    try {
+        const cycleFilter = document.getElementById('cycleFilter');
+        const cicloId = cycleFilter ? cycleFilter.value : null;
+        
+        const url = cicloId
+            ? `/zonas/${currentZoneId}/empleados?ciclo=${cicloId}`
+            : `/zonas/${currentZoneId}/empleados`;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success && result.data.supervisores) {
+            currentZonaSupervisores = result.data.supervisores;
+            
+            // Llenar el select de supervisores
+            const supervisorSelect = document.getElementById('supervisorSelect');
+            supervisorSelect.innerHTML = '<option value="">Seleccione un supervisor...</option>' +
+                currentZonaSupervisores.map(sup => 
+                    `<option value="${sup.idZonaEmp}">${sup.nombre}</option>`
+                ).join('');
+        }
+    } catch (error) {
+        console.error('Error cargando supervisores:', error);
+    }
 }
 
 window.closeAddEmpleadoModal = function () {
@@ -697,21 +758,34 @@ window.confirmSaveEmpleados = function () {
         return;
     }
 
+    const tipoEmpleado = document.getElementById('tipoEmpleado').value;
+    
+    // Si es representante, validar que haya seleccionado un supervisor
+    if (tipoEmpleado === 'representante') {
+        const supervisorSelect = document.getElementById('supervisorSelect');
+        if (!supervisorSelect.value) {
+            showToast('Debes seleccionar un supervisor para los representantes', 'warning');
+            return;
+        }
+    }
+
     const modal = document.getElementById('confirmModal');
     const message = document.getElementById('confirmMessage');
     const title = document.getElementById('confirmTitle');
     const buttonText = document.getElementById('confirmButtonText');
     const confirmBtn = document.getElementById('confirmButton');
 
+    const tipoTexto = tipoEmpleado === 'supervisor' ? 'supervisor' : 'representante médico';
     title.textContent = 'Confirmar Agregar';
-    message.textContent = `¿Deseas agregar ${selectedEmpleados.length} empleado${selectedEmpleados.length !== 1 ? 's' : ''} a esta zona?`;
+    message.textContent = `¿Deseas agregar ${selectedEmpleados.length} ${tipoTexto}${selectedEmpleados.length !== 1 ? 's' : ''} a esta zona?`;
     buttonText.textContent = 'Agregar';
 
     confirmBtn.className = 'btn btn-primary';
 
     pendingAction = {
-        type: 'addEmpleados',
-        empIds: selectedEmpleados
+        type: tipoEmpleado === 'supervisor' ? 'addEmpleados' : 'addRepresentantes',
+        empIds: selectedEmpleados,
+        idZonaEmp: tipoEmpleado === 'representante' ? document.getElementById('supervisorSelect').value : null
     };
 
     modal.classList.remove('closing');
@@ -792,6 +866,63 @@ async function addMultipleEmpleadosToZone(empIds) {
     } catch (error) {
         console.error('Error:', error);
         showToast('Error al agregar empleados', 'error');
+    }
+}
+
+async function addMultipleRepresentantesToZone(empIds, idZonaEmp) {
+    const cycleFilter = document.getElementById('cycleFilter');
+    const cicloId = cycleFilter ? cycleFilter.value : null;
+
+    if (!cicloId) {
+        showToast('Debes seleccionar un ciclo primero', 'warning');
+        return;
+    }
+
+    closeAddEmpleadoModal();
+
+    try {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const empId of empIds) {
+            const response = await fetch(`/zonas/${currentZoneId}/representantes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    idEmpleado: empId,
+                    idZonaEmp: idZonaEmp,
+                    idCiclo: cicloId,
+                    idProducto: null // Puedes agregar selector de producto si es necesario
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        }
+
+        if (successCount > 0) {
+            showToast(`${successCount} representante${successCount !== 1 ? 's' : ''} agregado${successCount !== 1 ? 's' : ''} exitosamente`, 'success');
+            // Actualizar solo la modal de detalles
+            await viewZoneDetails(currentZoneId);
+            // Actualizar la tabla en segundo plano
+            await reloadZonesTable();
+        }
+
+        if (errorCount > 0) {
+            showToast(`${errorCount} representante${errorCount !== 1 ? 's' : ''} no pudo${errorCount !== 1 ? 'ieron' : ''} ser agregado${errorCount !== 1 ? 's' : ''}`, 'warning');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error al agregar representantes', 'error');
     }
 }
 

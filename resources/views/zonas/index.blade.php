@@ -288,6 +288,23 @@
             </div>
 
             <div class="modal-body">
+                {{-- Tipo de Empleado --}}
+                <div class="form-group">
+                    <label class="form-label">Tipo de Empleado</label>
+                    <select class="form-select" id="tipoEmpleado" onchange="handleTipoEmpleadoChange()">
+                        <option value="supervisor">Supervisor</option>
+                        <option value="representante">Representante Médico</option>
+                    </select>
+                </div>
+
+                {{-- Selector de Supervisor (solo para representantes) --}}
+                <div class="form-group" id="supervisorGroup" style="display: none;">
+                    <label class="form-label">Supervisor <span class="required">*</span></label>
+                    <select class="form-select" id="supervisorSelect">
+                        <option value="">Seleccione un supervisor...</option>
+                    </select>
+                </div>
+
                 {{-- Buscador --}}
                 <div class="form-group">
                     <input 

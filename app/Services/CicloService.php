@@ -257,14 +257,14 @@ class CicloService
             // 2. CLONAR PRODUCTOS
             $mapeoProductos = $this->clonarProductos($cicloOriginal, $cicloNuevo);
             
-            // 3. CLONAR ZONA-EMPLEADOS
-            $this->clonarZonasEmpleados($cicloOriginal, $cicloNuevo);
+            // 3. CLONAR ZONA-EMPLEADOS (retorna mapeo de IDs viejos a nuevos)
+            $mapeoZonasEmpleados = $this->clonarZonasEmpleados($cicloOriginal, $cicloNuevo);
             
             // 4. CLONAR ZONA-GEOSEGMENTOS
             $this->clonarZonasGeosegmentos($cicloOriginal, $cicloNuevo);
             
-            // 5. CLONAR FUERZA DE VENTA (con los nuevos IDs de productos)
-            $this->clonarFuerzaVenta($cicloOriginal, $cicloNuevo, $mapeoProductos);
+            // 5. CLONAR FUERZA DE VENTA (con los nuevos IDs de productos y zonasEmpleados)
+            $this->clonarFuerzaVenta($cicloOriginal, $cicloNuevo, $mapeoProductos, $mapeoZonasEmpleados);
 
             // 6. CREAR/OBTENER PERIODO Y PERIODO-CICLO
             $periodoCicloNuevo = $this->crearPeriodoCiclo($cicloNuevo);
@@ -382,14 +382,16 @@ class CicloService
 
     /**
      * Clona todas las asignaciones zona-empleado de un ciclo a otro (OPTIMIZADO con bulk insert y chunks).
+     * Retorna un mapeo de IDs antiguos a nuevos.
      *
      * @param Ciclo $cicloOriginal
      * @param Ciclo $cicloNuevo
-     * @return void
+     * @return array Mapeo de IDs antiguos a nuevos [idZonaEmpViejo => idZonaEmpNuevo]
      */
-    protected function clonarZonasEmpleados(Ciclo $cicloOriginal, Ciclo $cicloNuevo): void
+    protected function clonarZonasEmpleados(Ciclo $cicloOriginal, Ciclo $cicloNuevo): array
     {
         $totalClonados = 0;
+        $mapeoZonasEmpleados = [];
         
         // SQL Server limita a 2100 parámetros por query
         // Con 4 columnas por zona: 2100/4 = 525 registros máximo
@@ -398,10 +400,12 @@ class CicloService
             ->where('idCiclo', $cicloOriginal->idCiclo)
             ->where('idEstado', 1) // Solo copiar zonas-empleados activos
             ->orderBy('idZonaEmp')
-            ->chunk(500, function ($zonasEmpOriginales) use ($cicloNuevo, &$totalClonados) {
+            ->chunk(500, function ($zonasEmpOriginales) use ($cicloNuevo, &$totalClonados, &$mapeoZonasEmpleados) {
                 $zonasParaInsertar = [];
+                $idsOriginales = [];
                 
                 foreach ($zonasEmpOriginales as $zona) {
+                    $idsOriginales[] = $zona->idZonaEmp;
                     $zonasParaInsertar[] = [
                         'idCiclo' => $cicloNuevo->idCiclo,
                         'idZona' => $zona->idZona,
@@ -412,11 +416,30 @@ class CicloService
                 
                 if (!empty($zonasParaInsertar)) {
                     DB::table('ODS.TAB_ZONAEMP')->insert($zonasParaInsertar);
+                    
+                    // Obtener los IDs de las zonas-empleados recién insertadas
+                    $zonasNuevas = DB::table('ODS.TAB_ZONAEMP')
+                        ->where('idCiclo', $cicloNuevo->idCiclo)
+                        ->orderBy('idZonaEmp', 'desc')
+                        ->limit(count($zonasParaInsertar))
+                        ->get(['idZonaEmp'])
+                        ->reverse()
+                        ->values();
+                    
+                    // Crear mapeo para este lote
+                    for ($i = 0; $i < count($idsOriginales); $i++) {
+                        if (isset($zonasNuevas[$i])) {
+                            $mapeoZonasEmpleados[$idsOriginales[$i]] = $zonasNuevas[$i]->idZonaEmp;
+                        }
+                    }
+                    
                     $totalClonados += count($zonasParaInsertar);
                 }
             });
 
         Log::info("ZonasEmpleados clonadas (bulk): {$totalClonados}");
+        
+        return $mapeoZonasEmpleados;
     }
 
     /**
@@ -460,17 +483,19 @@ class CicloService
 
     /**
      * Clona todas las fuerzas de venta de un ciclo a otro (OPTIMIZADO con bulk insert y chunks).
-     * Usa el mapeo de productos para actualizar las referencias.
+     * Usa el mapeo de productos y zonasEmpleados para actualizar las referencias.
      *
      * @param Ciclo $cicloOriginal
      * @param Ciclo $cicloNuevo
      * @param array $mapeoProductos
+     * @param array $mapeoZonasEmpleados
      * @return void
      */
-    protected function clonarFuerzaVenta(Ciclo $cicloOriginal, Ciclo $cicloNuevo, array $mapeoProductos): void
+    protected function clonarFuerzaVenta(Ciclo $cicloOriginal, Ciclo $cicloNuevo, array $mapeoProductos, array $mapeoZonasEmpleados): void
     {
         $now = Carbon::now();
         $totalClonados = 0;
+        $totalSinMapeo = 0;
         
         // Calcular el nuevo periodo de comisión basado en la fecha de inicio del nuevo ciclo
         $fechaInicioCicloNuevo = Carbon::parse($cicloNuevo->fechaInicio);
@@ -483,15 +508,18 @@ class CicloService
             ->where('idCiclo', $cicloOriginal->idCiclo)
             ->where('idEstado', 1) // Solo copiar fuerzas de venta activas
             ->orderBy('idFuerza')
-            ->chunk(250, function ($fuerzasVentaOriginales) use ($cicloNuevo, $mapeoProductos, $now, $nuevoPeriodoComision, &$totalClonados) {
+            ->chunk(250, function ($fuerzasVentaOriginales) use ($cicloNuevo, $mapeoProductos, $mapeoZonasEmpleados, $now, $nuevoPeriodoComision, &$totalClonados, &$totalSinMapeo) {
                 $fuerzasParaInsertar = [];
                 
                 foreach ($fuerzasVentaOriginales as $fuerza) {
-                    // Verificar si el producto original tiene mapeo
-                    if (isset($mapeoProductos[$fuerza->idProducto])) {
+                    // Verificar si el producto y zonaEmp originales tienen mapeo
+                    $tieneProducto = isset($mapeoProductos[$fuerza->idProducto]);
+                    $tieneZonaEmp = isset($mapeoZonasEmpleados[$fuerza->idZonaEmp]);
+                    
+                    if ($tieneProducto && $tieneZonaEmp) {
                         $fuerzasParaInsertar[] = [
                             'idCiclo' => $cicloNuevo->idCiclo,
-                            'idZonaEmp' => $fuerza->idZonaEmp,
+                            'idZonaEmp' => $mapeoZonasEmpleados[$fuerza->idZonaEmp], // Usar el nuevo idZonaEmp
                             'idProducto' => $mapeoProductos[$fuerza->idProducto],
                             'idEmpleado' => $fuerza->idEmpleado,
                             'fechaModificacion' => $now,
@@ -499,6 +527,8 @@ class CicloService
                             'idEstado' => $fuerza->idEstado,
                             'periodoComision' => $nuevoPeriodoComision, // Calculado automáticamente según fecha del ciclo
                         ];
+                    } else {
+                        $totalSinMapeo++;
                     }
                 }
                 
@@ -509,7 +539,7 @@ class CicloService
                 }
             });
 
-        Log::info("FuerzasVenta clonadas (bulk): {$totalClonados} - Periodo: {$nuevoPeriodoComision}");
+        Log::info("FuerzasVenta clonadas (bulk): {$totalClonados} - Periodo: {$nuevoPeriodoComision} - Sin mapeo: {$totalSinMapeo}");
     }
 
     /**

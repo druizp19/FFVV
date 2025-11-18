@@ -15,11 +15,21 @@ class SSOTokenService
         // IMPORTANTE: Usar la misma clave que el portal (APP_KEY)
         $key = config('app.key');
         
+        Log::debug('SSO Token Service - Clave original', [
+            'key_length' => strlen($key),
+            'has_base64_prefix' => str_starts_with($key, 'base64:'),
+            'key_preview' => substr($key, 0, 20) . '...'
+        ]);
+        
         // Laravel siempre incluye el prefijo base64: en APP_KEY, decodificarlo
         if (str_starts_with($key, 'base64:')) {
             $this->secretKey = base64_decode(substr($key, 7));
+            Log::debug('SSO Token Service - Clave decodificada', [
+                'decoded_length' => strlen($this->secretKey)
+            ]);
         } else {
             $this->secretKey = $key;
+            Log::debug('SSO Token Service - Usando clave sin decodificar');
         }
     }
 
@@ -32,7 +42,19 @@ class SSOTokenService
     public function validateToken(string $token): ?array
     {
         try {
+            Log::debug('Validando token SSO', [
+                'token_length' => strlen($token),
+                'token_preview' => substr($token, 0, 50) . '...',
+                'secret_key_length' => strlen($this->secretKey)
+            ]);
+            
             $decoded = JWT::decode($token, new Key($this->secretKey, 'HS256'));
+            
+            Log::info('Token SSO decodificado exitosamente', [
+                'exp' => $decoded->exp ?? 'no set',
+                'iat' => $decoded->iat ?? 'no set',
+                'iss' => $decoded->iss ?? 'no set'
+            ]);
             
             // Verificar que no haya expirado
             if (isset($decoded->exp) && $decoded->exp < time()) {
@@ -46,7 +68,9 @@ class SSOTokenService
             Log::warning('Token SSO expirado: ' . $e->getMessage());
             return null;
         } catch (\Firebase\JWT\SignatureInvalidException $e) {
-            Log::error('Firma de token SSO inválida: ' . $e->getMessage());
+            Log::error('Firma de token SSO inválida: ' . $e->getMessage(), [
+                'secret_key_length' => strlen($this->secretKey)
+            ]);
             return null;
         } catch (\Exception $e) {
             Log::error('Error validando token SSO: ' . $e->getMessage(), [
