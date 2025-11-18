@@ -13,7 +13,14 @@ class SSOTokenService
     public function __construct()
     {
         // IMPORTANTE: Debe ser la misma clave que el portal principal
-        $this->secretKey = env('SSO_SECRET_KEY', 'base64:yCoUf37syuy3prwLtoh1voFf8yZ2u43uckDZtDlU63E=');
+        $key = config('sso.secret_key', env('SSO_SECRET_KEY', 'base64:yCoUf37syuy3prwLtoh1voFf8yZ2u43uckDZtDlU63E='));
+        
+        // Si la clave tiene el prefijo base64:, decodificarla
+        if (str_starts_with($key, 'base64:')) {
+            $this->secretKey = base64_decode(substr($key, 7));
+        } else {
+            $this->secretKey = $key;
+        }
     }
 
     /**
