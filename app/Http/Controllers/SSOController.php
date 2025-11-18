@@ -34,40 +34,64 @@ class SSOController extends Controller
             return redirect('/login')->with('error', 'Token de autenticación inválido o expirado');
         }
 
-        // Buscar usuario en la base de datos por correo
+        // Buscar usuario primero en TAB_USUARIO (sistema general)
         $usuario = DB::table('ODS.TAB_USUARIO')
             ->where('correo', $userData['correo'])
             ->first();
 
-        if (!$usuario) {
-            Log::warning('Usuario SSO no encontrado', ['correo' => $userData['correo']]);
-            return redirect('/login')->with('error', 'Usuario no encontrado en el sistema');
+        $usuarioRol = null;
+        $esUsuarioFFVV = false;
+
+        if ($usuario) {
+            // Usuario encontrado en sistema general, verificar acceso a FUERZA DE VENTA
+            $sistema = DB::table('ODS.TAB_SISTEMA')
+                ->where('sistema', 'FUERZA DE VENTA')
+                ->first();
+
+            if ($sistema) {
+                $usuarioRol = DB::table('ODS.TAB_USUARIO_ROL as ur')
+                    ->join('ODS.TAB_ROL as r', 'ur.idRol', '=', 'r.idRol')
+                    ->where('ur.idUsuario', $usuario->idUsuario)
+                    ->where('ur.idSistema', $sistema->idSistema)
+                    ->select('ur.idUsuarioRol', 'ur.idRol', 'r.rol')
+                    ->first();
+            }
         }
 
-        // Obtener el ID del sistema "FUERZA DE VENTA"
-        $sistema = DB::table('ODS.TAB_SISTEMA')
-            ->where('sistema', 'FUERZA DE VENTA')
-            ->first();
-
-        if (!$sistema) {
-            Log::error('Sistema FUERZA DE VENTA no encontrado en TAB_SISTEMA');
-            return redirect('/login')->with('error', 'Error de configuración del sistema');
-        }
-
-        // Verificar que el usuario tenga acceso a este sistema
-        $usuarioRol = DB::table('ODS.TAB_USUARIO_ROL as ur')
-            ->join('ODS.TAB_ROL as r', 'ur.idRol', '=', 'r.idRol')
-            ->where('ur.idUsuario', $usuario->idUsuario)
-            ->where('ur.idSistema', $sistema->idSistema)
-            ->select('ur.idUsuarioRol', 'ur.idRol', 'r.rol')
-            ->first();
-
+        // Si no se encontró en TAB_USUARIO o no tiene acceso, buscar en TAB_USUARIO_FFVV
         if (!$usuarioRol) {
-            Log::warning('Usuario sin acceso al sistema FUERZA DE VENTA', [
-                'usuario' => $usuario->usuario,
-                'correo' => $usuario->correo
-            ]);
-            return redirect('/login')->with('error', 'No tienes acceso a este sistema. Contacta al administrador.');
+            $usuarioFFVV = DB::table('ODS.TAB_USUARIO_FFVV')
+                ->where('correo', $userData['correo'])
+                ->first();
+
+            if ($usuarioFFVV) {
+                $esUsuarioFFVV = true;
+                
+                // Crear objeto usuario compatible
+                $usuario = (object)[
+                    'idUsuario' => null,
+                    'usuario' => explode('@', $usuarioFFVV->correo)[0],
+                    'correo' => $usuarioFFVV->correo,
+                ];
+                
+                // Crear objeto rol compatible
+                $usuarioRol = (object)[
+                    'idUsuarioRol' => null,
+                    'idRol' => null,
+                    'rol' => strtoupper($usuarioFFVV->rol),
+                ];
+                
+                Log::info('Usuario FFVV encontrado en SSO', [
+                    'correo' => $usuarioFFVV->correo,
+                    'rol' => $usuarioFFVV->rol
+                ]);
+            }
+        }
+
+        // Si no se encontró en ninguna tabla
+        if (!$usuarioRol) {
+            Log::warning('Usuario SSO no encontrado en ninguna tabla', ['correo' => $userData['correo']]);
+            return redirect('/login')->with('error', 'Usuario no encontrado en el sistema');
         }
 
         // Obtener información adicional del empleado si existe (por correo)

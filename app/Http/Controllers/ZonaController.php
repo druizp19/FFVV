@@ -202,19 +202,24 @@ class ZonaController extends Controller
         // Registrar en el historial si fue exitoso
         if ($result['success'] && isset($result['data'])) {
             $zona = $result['data'];
-            \App\Models\Historial::create([
-                'idCiclo' => null, // Las zonas no tienen ciclo directo
-                'entidad' => 'Zona',
-                'idEntidad' => $zona->idZona,
-                'accion' => 'Crear',
-                'descripcion' => sprintf('Se creó la zona "%s"', $zona->zona),
-                'datosNuevos' => [
-                    'zona' => $zona->zona,
-                    'idEstado' => $zona->idEstado
-                ],
-                'usuario' => session('azure_user')['name'] ?? 'Sistema',
-                'fechaHora' => now(),
-            ]);
+            
+            try {
+                \App\Models\Historial::create([
+                    'idCiclo' => getActiveCicloId(),
+                    'entidad' => 'Zona',
+                    'idEntidad' => $zona->idZona,
+                    'accion' => 'Crear',
+                    'descripcion' => sprintf('Se creó la zona "%s"', $zona->zona),
+                    'datosNuevos' => [
+                        'zona' => $zona->zona,
+                        'idEstado' => $zona->idEstado
+                    ],
+                    'usuario' => session('usuario.usuario') ?? session('azure_user.name') ?? 'Sistema',
+                    'fechaHora' => now(),
+                ]);
+            } catch (\Exception $e) {
+                \Log::debug('No se pudo registrar en historial: ' . $e->getMessage());
+            }
         }
 
         return response()->json($result, $result['success'] ? 201 : 400);
@@ -246,20 +251,25 @@ class ZonaController extends Controller
         // Registrar en el historial si fue exitoso
         if ($result['success'] && isset($result['data'])) {
             $zona = $result['data'];
-            \App\Models\Historial::create([
-                'idCiclo' => null,
-                'entidad' => 'Zona',
-                'idEntidad' => $zona->idZona,
-                'accion' => 'Actualizar',
-                'descripcion' => sprintf('Se actualizó la zona "%s"', $zona->zona),
-                'datosAnteriores' => $datosAnteriores,
-                'datosNuevos' => [
-                    'zona' => $zona->zona,
-                    'idEstado' => $zona->idEstado
-                ],
-                'usuario' => session('azure_user')['name'] ?? 'Sistema',
-                'fechaHora' => now(),
-            ]);
+            
+            try {
+                \App\Models\Historial::create([
+                    'idCiclo' => getActiveCicloId(),
+                    'entidad' => 'Zona',
+                    'idEntidad' => $zona->idZona,
+                    'accion' => 'Actualizar',
+                    'descripcion' => sprintf('Se actualizó la zona "%s"', $zona->zona),
+                    'datosAnteriores' => $datosAnteriores,
+                    'datosNuevos' => [
+                        'zona' => $zona->zona,
+                        'idEstado' => $zona->idEstado
+                    ],
+                    'usuario' => session('usuario.usuario') ?? session('azure_user.name') ?? 'Sistema',
+                    'fechaHora' => now(),
+                ]);
+            } catch (\Exception $e) {
+                \Log::debug('No se pudo registrar en historial: ' . $e->getMessage());
+            }
         }
 
         return response()->json($result, $result['success'] ? 200 : 400);
@@ -286,17 +296,21 @@ class ZonaController extends Controller
             
             // Registrar en el historial
             if ($zona) {
-                \App\Models\Historial::create([
-                    'idCiclo' => null,
-                    'entidad' => 'Zona',
-                    'idEntidad' => $zona->idZona,
-                    'accion' => 'Desactivar',
-                    'descripcion' => sprintf('Se desactivó la zona "%s"', $zona->zona),
-                    'datosAnteriores' => ['idEstado' => $zona->idEstado],
-                    'datosNuevos' => ['idEstado' => 0],
-                    'usuario' => session('azure_user')['name'] ?? 'Sistema',
-                    'fechaHora' => now(),
-                ]);
+                try {
+                    \App\Models\Historial::create([
+                        'idCiclo' => getActiveCicloId(),
+                        'entidad' => 'Zona',
+                        'idEntidad' => $zona->idZona,
+                        'accion' => 'Desactivar',
+                        'descripcion' => sprintf('Se desactivó la zona "%s"', $zona->zona),
+                        'datosAnteriores' => ['idEstado' => $zona->idEstado],
+                        'datosNuevos' => ['idEstado' => 0],
+                        'usuario' => session('usuario.usuario') ?? session('azure_user.name') ?? 'Sistema',
+                        'fechaHora' => now(),
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::debug('No se pudo registrar en historial: ' . $e->getMessage());
+                }
             }
         }
 

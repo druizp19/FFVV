@@ -93,3 +93,20 @@ if (!function_exists('userRole')) {
         return is_array($user) ? ($user['rol'] ?? 'Usuario') : 'Usuario';
     }
 }
+
+if (!function_exists('getActiveCicloId')) {
+    /**
+     * Obtener el ID del último ciclo activo
+     * Busca el ciclo más reciente que esté dentro del rango de fechas actual
+     * Si hay múltiples ciclos activos, retorna el más reciente (mayor idCiclo)
+     */
+    function getActiveCicloId(): ?int
+    {
+        $ciclo = \DB::table('ODS.TAB_CICLO')
+            ->whereRaw('GETDATE() BETWEEN fechaInicio AND fechaFin')
+            ->orderBy('idCiclo', 'desc')
+            ->first();
+        
+        return $ciclo ? $ciclo->idCiclo : null;
+    }
+}

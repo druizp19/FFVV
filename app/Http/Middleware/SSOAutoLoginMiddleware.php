@@ -31,68 +31,95 @@ class SSOAutoLoginMiddleware
             $userData = $this->ssoTokenService->validateToken($token);
             
             if ($userData) {
-                // Buscar usuario en la base de datos
+                // Buscar usuario primero en TAB_USUARIO (sistema general)
                 $usuario = DB::table('ODS.TAB_USUARIO')
                     ->where('correo', $userData['correo'])
                     ->first();
                 
+                $usuarioRol = null;
+                $esUsuarioFFVV = false;
+                
                 if ($usuario) {
-                    // Obtener el sistema FUERZA DE VENTA
+                    // Usuario encontrado en sistema general, verificar acceso a FUERZA DE VENTA
                     $sistema = DB::table('ODS.TAB_SISTEMA')
                         ->where('sistema', 'FUERZA DE VENTA')
                         ->first();
                     
                     if ($sistema) {
-                        // Verificar acceso del usuario
                         $usuarioRol = DB::table('ODS.TAB_USUARIO_ROL as ur')
                             ->join('ODS.TAB_ROL as r', 'ur.idRol', '=', 'r.idRol')
                             ->where('ur.idUsuario', $usuario->idUsuario)
                             ->where('ur.idSistema', $sistema->idSistema)
                             ->select('ur.idUsuarioRol', 'ur.idRol', 'r.rol')
                             ->first();
-                        
-                        if ($usuarioRol) {
-                            // Obtener empleado si existe
-                            $empleado = DB::table('ODS.TAB_EMPLEADO')
-                                ->where('correo', $usuario->correo)
-                                ->where('idEstado', 1)
-                                ->first();
-                            
-                            // Crear sesión automáticamente
-                            Session::put('usuario', [
-                                'idUsuario' => $usuario->idUsuario,
-                                'usuario' => $usuario->usuario,
-                                'correo' => $usuario->correo,
-                                'idRol' => $usuarioRol->idRol,
-                                'idEmpleado' => $empleado->idEmpleado ?? null,
-                                'nombreCompleto' => $empleado ? trim(($empleado->nombre ?? '') . ' ' . ($empleado->apeNombre ?? '')) : $usuario->usuario,
-                                'sso_auto_login' => true,
-                            ]);
-                            
-                            Session::put('rol', [
-                                'idRol' => $usuarioRol->idRol,
-                                'rol' => $usuarioRol->rol,
-                            ]);
-                            
-                            Log::info('SSO Auto-login exitoso', [
-                                'usuario' => $usuario->usuario,
-                                'correo' => $usuario->correo,
-                            ]);
-                            
-                            Log::info('SSO: Sesión creada exitosamente', [
-                                'session_usuario' => Session::has('usuario'),
-                                'session_rol' => Session::has('rol'),
-                                'url_destino' => $request->fullUrl(),
-                            ]);
-                            
-                            // Remover el token de la query string para que no aparezca en la URL
-                            $request->query->remove('token');
-                            
-                            // Continuar con la request - la sesión ya está creada
-                            // y el AzureAuthMiddleware la reconocerá
-                            return $next($request);
-                        }
                     }
+                }
+                
+                // Si no se encontró en TAB_USUARIO o no tiene acceso, buscar en TAB_USUARIO_FFVV
+                if (!$usuarioRol) {
+                    $usuarioFFVV = DB::table('ODS.TAB_USUARIO_FFVV')
+                        ->where('correo', $userData['correo'])
+                        ->first();
+                    
+                    if ($usuarioFFVV) {
+                        $esUsuarioFFVV = true;
+                        
+                        // Crear objeto usuario compatible
+                        $usuario = (object)[
+                            'idUsuario' => null,
+                            'usuario' => explode('@', $usuarioFFVV->correo)[0],
+                            'correo' => $usuarioFFVV->correo,
+                        ];
+                        
+                        // Crear objeto rol compatible
+                        $usuarioRol = (object)[
+                            'idUsuarioRol' => null,
+                            'idRol' => null,
+                            'rol' => strtoupper($usuarioFFVV->rol),
+                        ];
+                    }
+                }
+                
+                if ($usuario && $usuarioRol) {
+                    // Obtener empleado si existe
+                    $empleado = DB::table('ODS.TAB_EMPLEADO')
+                        ->where('correo', $usuario->correo)
+                        ->where('idEstado', 1)
+                        ->first();
+                    
+                    // Crear sesión automáticamente
+                    Session::put('usuario', [
+                        'idUsuario' => $usuario->idUsuario,
+                        'usuario' => $usuario->usuario,
+                        'correo' => $usuario->correo,
+                        'idRol' => $usuarioRol->idRol,
+                        'idEmpleado' => $empleado->idEmpleado ?? null,
+                        'nombreCompleto' => $empleado ? trim(($empleado->nombre ?? '') . ' ' . ($empleado->apeNombre ?? '')) : $usuario->usuario,
+                        'sso_auto_login' => true,
+                    ]);
+                    
+                    Session::put('rol', [
+                        'idRol' => $usuarioRol->idRol,
+                        'rol' => $usuarioRol->rol,
+                    ]);
+                    
+                    Log::info('SSO Auto-login exitoso', [
+                        'usuario' => $usuario->usuario,
+                        'correo' => $usuario->correo,
+                    ]);
+                    
+                    Log::info('SSO: Sesión creada exitosamente', [
+                        'session_usuario' => Session::has('usuario'),
+                        'session_rol' => Session::has('rol'),
+                        'url_destino' => $request->fullUrl(),
+                    ]);
+                    
+                    // Remover el token de la query string para que no aparezca en la URL
+                    $request->query->remove('token');
+                    
+                    // Continuar con la request - la sesión ya está creada
+                    // y el AzureAuthMiddleware la reconocerá
+                    return $next($request);
                 }
                 
                 Log::warning('Token SSO válido pero usuario sin acceso', [

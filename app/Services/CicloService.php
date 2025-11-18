@@ -329,6 +329,7 @@ class CicloService
         // Usamos 200 para estar seguros
         DB::table('ODS.TAB_PRODUCTO')
             ->where('idCiclo', $cicloOriginal->idCiclo)
+            ->where('idEstado', 1) // Solo copiar productos activos
             ->orderBy('idProducto')
             ->chunk(200, function ($productosOriginales) use ($cicloNuevo, $now, &$mapeoProductos, &$totalClonados) {
                 $productosParaInsertar = [];
@@ -395,6 +396,7 @@ class CicloService
         // Usamos 500 para estar seguros
         DB::table('ODS.TAB_ZONAEMP')
             ->where('idCiclo', $cicloOriginal->idCiclo)
+            ->where('idEstado', 1) // Solo copiar zonas-empleados activos
             ->orderBy('idZonaEmp')
             ->chunk(500, function ($zonasEmpOriginales) use ($cicloNuevo, &$totalClonados) {
                 $zonasParaInsertar = [];
@@ -433,6 +435,7 @@ class CicloService
         // Usamos 500 para estar seguros
         DB::table('ODS.TAB_ZONAGEO')
             ->where('idCiclo', $cicloOriginal->idCiclo)
+            ->where('idEstado', 1) // Solo copiar zonas-geosegmentos activos
             ->orderBy('idZonaGeo')
             ->chunk(500, function ($zonasGeoOriginales) use ($cicloNuevo, &$totalClonados) {
                 $zonasParaInsertar = [];
@@ -478,6 +481,7 @@ class CicloService
         // Usamos 250 para estar seguros
         DB::table('ODS.TAB_FUERZAVENTA')
             ->where('idCiclo', $cicloOriginal->idCiclo)
+            ->where('idEstado', 1) // Solo copiar fuerzas de venta activas
             ->orderBy('idFuerza')
             ->chunk(250, function ($fuerzasVentaOriginales) use ($cicloNuevo, $mapeoProductos, $now, $nuevoPeriodoComision, &$totalClonados) {
                 $fuerzasParaInsertar = [];
@@ -663,23 +667,33 @@ class CicloService
             $totalClonados = 0;
 
             // Clonar en chunks para evitar problemas de memoria
-            // Solo se clonan los registros con estado activo (idEstado = 1)
+            // SQL Server limita a 2100 parámetros por query
+            // Con 4-6 columnas por brick: 2100/6 = 350 registros máximo
+            // Usamos 300 para estar seguros
             DB::table('ODS.TAB_BRICK_GEOSEGMENTO')
                 ->where('idPeriodoCiclo', $periodoCicloOriginal->idPeriodoCiclo)
-                ->where('idEstado', 1) // Solo copiar registros activos
+                ->where('idEstado', 1) // Solo copiar bricks activos
                 ->orderBy('idBrickGeosegmento')
-                ->chunk(500, function ($bricksOriginales) use ($periodoCicloNuevo, &$totalClonados) {
+                ->chunk(300, function ($bricksOriginales) use ($periodoCicloNuevo, &$totalClonados) {
                     $bricksParaInsertar = [];
 
                     foreach ($bricksOriginales as $brick) {
-                        $bricksParaInsertar[] = [
+                        $registro = [
                             'idBrick' => $brick->idBrick,
                             'idCanal' => $brick->idCanal,
                             'idGeosegmento' => $brick->idGeosegmento,
                             'idPeriodoCiclo' => $periodoCicloNuevo->idPeriodoCiclo,
-                            'fechaProceso' => $brick->fechaProceso,
-                            'idEstado' => $brick->idEstado
                         ];
+                        
+                        // Agregar campos opcionales solo si existen
+                        if (property_exists($brick, 'fechaProceso')) {
+                            $registro['fechaProceso'] = $brick->fechaProceso;
+                        }
+                        if (property_exists($brick, 'idEstado')) {
+                            $registro['idEstado'] = $brick->idEstado;
+                        }
+                        
+                        $bricksParaInsertar[] = $registro;
                     }
 
                     if (!empty($bricksParaInsertar)) {
