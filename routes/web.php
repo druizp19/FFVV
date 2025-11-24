@@ -65,6 +65,12 @@ Route::prefix('empleados')->name('empleados.')->group(function () {
     Route::delete('/{id}', [EmpleadoController::class, 'destroy'])->name('destroy');
 });
 
+// Rutas API de Empleados
+Route::prefix('api/empleados')->name('api.empleados.')->group(function () {
+    Route::get('/search', [\App\Http\Controllers\Api\EmpleadoController::class, 'search'])->name('search');
+    Route::get('/{id}', [\App\Http\Controllers\Api\EmpleadoController::class, 'show'])->name('show')->where('id', '[0-9]+');
+});
+
 // Rutas de Geosegmentos
 Route::prefix('geosegmentos')->name('geosegmentos.')->group(function () {
     Route::get('/', [GeosegmentoController::class, 'index'])->name('index');
@@ -72,6 +78,10 @@ Route::prefix('geosegmentos')->name('geosegmentos.')->group(function () {
     Route::get('/{id}/ubigeos-list', [GeosegmentoController::class, 'getUbigeosList'])->name('ubigeosList');
     Route::post('/', [GeosegmentoController::class, 'store'])->name('store');
     Route::post('/{id}/ubigeos', [GeosegmentoController::class, 'assignUbigeos'])->name('assignUbigeos');
+    
+    // Operaciones masivas
+    Route::post('/bulk-delete', [GeosegmentoController::class, 'bulkDelete'])->name('bulkDelete');
+    Route::post('/clone-from-zones', [GeosegmentoController::class, 'cloneFromZones'])->name('cloneFromZones');
 });
 
 // Rutas API
@@ -79,8 +89,13 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/ubigeos/search', [\App\Http\Controllers\Api\UbigeoController::class, 'search'])->name('ubigeos.search');
     Route::get('/canales', [\App\Http\Controllers\Api\CanalController::class, 'index'])->name('canales.index');
     Route::get('/geosegmentos', [\App\Http\Controllers\Api\GeosegmentoController::class, 'index'])->name('geosegmentos.index');
+    Route::get('/zonas', [\App\Http\Controllers\Api\ZonaController::class, 'index'])->name('zonas.index');
+    Route::get('/zonas/count-unique-geosegmentos', [\App\Http\Controllers\Api\ZonaController::class, 'countUniqueGeosegmentos'])->name('zonas.countUniqueGeosegmentos');
+    Route::get('/zonas/by-linea', [\App\Http\Controllers\Api\ZonaController::class, 'getZonasByLinea'])->name('zonas.byLinea');
+    Route::get('/lineas', [\App\Http\Controllers\Api\LineaController::class, 'index'])->name('lineas.index');
     Route::get('/bricks/available', [\App\Http\Controllers\Api\BrickController::class, 'available'])->name('bricks.available');
     Route::get('/bricks/filters', [\App\Http\Controllers\Api\BrickFilterController::class, 'getFilters'])->name('bricks.filters');
+    Route::get('/franqlineas', [\App\Http\Controllers\Api\FranqLineaController::class, 'index'])->name('franqlineas.index');
 });
 
 // Rutas de Zonas
@@ -110,8 +125,30 @@ Route::prefix('zonas')->name('zonas.')->group(function () {
     // Agregar representante médico a una zona
     Route::post('/{id}/representantes', [ZonaController::class, 'addRepresentanteToZone'])->name('representantes.add');
     
+    // Quitar representante médico con registro de ausencia
+    Route::post('/representantes/{idFuerza}/remove-with-ausencia', [ZonaController::class, 'removeRepresentanteWithAusencia'])->name('representantes.removeWithAusencia');
+    
+    // Obtener líneas de una zona
+    Route::get('/{id}/lineas', [ZonaController::class, 'getLineasZona'])->name('lineas');
+    
+    // Unificar líneas
+    Route::post('/unificar-linea', [ZonaController::class, 'unificarLinea'])->name('unificarLinea');
+    
+    // Reactivar empleado con licencia
+    Route::post('/empleados/{idEmpleado}/reactivar-licencia', [ZonaController::class, 'reactivarEmpleadoLicencia'])->name('empleados.reactivarLicencia');
+    
+    // Cambiar supervisor
+    Route::post('/empleados/{idZonaEmp}/cambiar-supervisor', [ZonaController::class, 'cambiarSupervisor'])->name('empleados.cambiarSupervisor');
+    
+    // Cambiar representante
+    Route::post('/representantes/{idFuerza}/cambiar-representante', [ZonaController::class, 'cambiarRepresentante'])->name('representantes.cambiarRepresentante');
+    
     // Agregar geosegmento a una zona
     Route::post('/{id}/geosegmentos', [ZonaController::class, 'addGeosegmentToZone'])->name('geosegmentos.add');
+    
+    // Operaciones masivas de geosegmentos
+    Route::post('/{id}/geosegmentos/bulk-remove', [ZonaController::class, 'bulkRemoveGeosegmentos'])->name('geosegmentos.bulkRemove');
+    Route::post('/{id}/geosegmentos/copy-from-zones', [ZonaController::class, 'copyGeosegmentosFromZones'])->name('geosegmentos.copyFromZones');
 });
 
 // Rutas de Productos
@@ -141,6 +178,13 @@ Route::prefix('bricks')->name('bricks.')->group(function () {
     Route::get('/reasignacion/get-bricks', [\App\Http\Controllers\BrickReasignacionController::class, 'getBricksGeosegmento'])->name('reasignacion.get-bricks');
     Route::get('/reasignacion/get-destinos', [\App\Http\Controllers\BrickReasignacionController::class, 'getGeosegmentosDestino'])->name('reasignacion.get-destinos');
     Route::post('/reasignacion/reasignar', [\App\Http\Controllers\BrickReasignacionController::class, 'reasignarBricks'])->name('reasignacion.reasignar');
+});
+
+// Rutas de FranqLinea
+Route::prefix('franqlinea')->name('franqlinea.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\FranqLineaController::class, 'index'])->name('index');
+    Route::post('/', [\App\Http\Controllers\FranqLineaController::class, 'store'])->name('store');
+    Route::put('/{id}/estado', [\App\Http\Controllers\FranqLineaController::class, 'updateEstado'])->name('updateEstado');
 });
 
 }); // Fin del grupo de rutas protegidas

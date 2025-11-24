@@ -81,27 +81,31 @@ window.closeToast = function (toastId) {
 
 window.filterProducts = function () {
     const cycleSelect = document.getElementById('cycleFilter');
+    const lineaSelect = document.getElementById('lineaFilter');
     const marcaSelect = document.getElementById('marcaFilter');
     const statusSelect = document.getElementById('statusFilter');
 
     const cycleId = cycleSelect ? cycleSelect.value : '';
+    const lineaId = lineaSelect ? lineaSelect.value : '';
     const marcaId = marcaSelect ? marcaSelect.value : '';
     const statusId = statusSelect ? statusSelect.value : '';
 
     // Obtener los valores actuales de la URL
     const urlParams = new URLSearchParams(window.location.search);
     const currentCycleId = urlParams.get('ciclo') || '';
+    const currentLineaId = urlParams.get('linea') || '';
     const currentMarcaId = urlParams.get('marca') || '';
     const currentStatusId = urlParams.get('estado') || '';
 
     // Si los filtros no han cambiado, no hacer nada
-    if (cycleId === currentCycleId && marcaId === currentMarcaId && statusId === currentStatusId) {
+    if (cycleId === currentCycleId && lineaId === currentLineaId && marcaId === currentMarcaId && statusId === currentStatusId) {
         return;
     }
 
     // Construir la nueva URL
     const params = new URLSearchParams();
     if (cycleId) params.append('ciclo', cycleId);
+    if (lineaId) params.append('linea', lineaId);
     if (marcaId) params.append('marca', marcaId);
     if (statusId) params.append('estado', statusId);
 
@@ -152,6 +156,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const cicloFromUrl = urlParams.get('ciclo');
         if (cicloFromUrl) {
             cycleFilter.value = cicloFromUrl;
+        }
+    }
+
+    const lineaFilter = document.getElementById('lineaFilter');
+    if (lineaFilter) {
+        const lineaFromUrl = urlParams.get('linea');
+        if (lineaFromUrl) {
+            lineaFilter.value = lineaFromUrl;
         }
     }
 
@@ -321,11 +333,13 @@ window.saveProduct = async function () {
 async function reloadProductsTable() {
     try {
         const cycleFilter = document.getElementById('cycleFilter');
+        const lineaFilter = document.getElementById('lineaFilter');
         const marcaFilter = document.getElementById('marcaFilter');
         const statusFilter = document.getElementById('statusFilter');
         
         const params = new URLSearchParams();
         if (cycleFilter && cycleFilter.value) params.append('ciclo', cycleFilter.value);
+        if (lineaFilter && lineaFilter.value) params.append('linea', lineaFilter.value);
         if (marcaFilter && marcaFilter.value) params.append('marca', marcaFilter.value);
         if (statusFilter && statusFilter.value) params.append('estado', statusFilter.value);
         

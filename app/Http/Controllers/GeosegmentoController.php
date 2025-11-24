@@ -209,6 +209,146 @@ class GeosegmentoController extends Controller
     }
 
     /**
+     * Elimina geosegmentos masivamente (cambia estado a inactivo).
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function bulkDelete(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'geosegmentos' => 'required|array|min:1',
+            'geosegmentos.*' => 'required|integer|exists:ODS.TAB_GEOSEGMENTO,idGeosegmento',
+        ]);
+
+        try {
+            $count = \DB::table('ODS.TAB_GEOSEGMENTO')
+                ->whereIn('idGeosegmento', $validated['geosegmentos'])
+                ->update(['idEstado' => 2]); // 2 = Inactivo
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$count} geosegmento(s) eliminado(s) exitosamente",
+                'count' => $count
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar geosegmentos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Clona geosegmentos de zonas origen a una zona destino.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function cloneFromZones(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'zonas_origen' => 'required|array|min:1',
+            'zonas_origen.*' => 'required|integer|exists:ODS.TAB_ZONA,idZona',
+            'zona_destino' => 'required|integer|exists:ODS.TAB_ZONA,idZona',
+        ]);
+
+        try {
+            // Obtener el ciclo abierto actual
+            $cicloAbierto = \App\Models\Ciclo::with('estado')
+                ->whereRaw('GETDATE() BETWEEN fechaInicio AND fechaFin')
+                ->first();
+
+            if (!$cicloAbierto) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay un ciclo abierto actualmente.'
+                ], 400);
+            }
+
+            // Verificar si el ciclo está cerrado
+            if ($cicloAbierto->estado && $cicloAbierto->estado->estado === 'Cerrado') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden clonar geosegmentos en un ciclo cerrado.'
+                ], 403);
+            }
+
+            // Obtener el periodo-ciclo actual
+            $periodoCiclo = \DB::table('ODS.TAB_PERIODO_CICLO')
+                ->where('idCiclo', $cicloAbierto->idCiclo)
+                ->where('idEstado', 1)
+                ->first();
+
+            if (!$periodoCiclo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró un periodo-ciclo activo.'
+                ], 400);
+            }
+
+            // Obtener geosegmentos de las zonas origen
+            $geosegmentosOrigen = \DB::table('ODS.TAB_ZONAGEO')
+                ->whereIn('idZona', $validated['zonas_origen'])
+                ->where('idPeriodoCiclo', $periodoCiclo->idPeriodoCiclo)
+                ->where('idEstado', 1)
+                ->pluck('idGeosegmento')
+                ->unique()
+                ->toArray();
+
+            if (empty($geosegmentosOrigen)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Las zonas seleccionadas no tienen geosegmentos asignados.'
+                ], 400);
+            }
+
+            // Verificar cuáles ya existen en la zona destino
+            $geosegmentosExistentes = \DB::table('ODS.TAB_ZONAGEO')
+                ->where('idZona', $validated['zona_destino'])
+                ->where('idPeriodoCiclo', $periodoCiclo->idPeriodoCiclo)
+                ->whereIn('idGeosegmento', $geosegmentosOrigen)
+                ->pluck('idGeosegmento')
+                ->toArray();
+
+            // Filtrar solo los que no existen
+            $geosegmentosNuevos = array_diff($geosegmentosOrigen, $geosegmentosExistentes);
+
+            if (empty($geosegmentosNuevos)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Todos los geosegmentos ya están asignados a la zona destino.'
+                ], 400);
+            }
+
+            // Insertar los nuevos registros
+            $insertData = [];
+            foreach ($geosegmentosNuevos as $idGeosegmento) {
+                $insertData[] = [
+                    'idZona' => $validated['zona_destino'],
+                    'idGeosegmento' => $idGeosegmento,
+                    'idPeriodoCiclo' => $periodoCiclo->idPeriodoCiclo,
+                    'idEstado' => 1
+                ];
+            }
+
+            \DB::table('ODS.TAB_ZONAGEO')->insert($insertData);
+
+            return response()->json([
+                'success' => true,
+                'message' => count($geosegmentosNuevos) . ' geosegmento(s) clonado(s) exitosamente',
+                'clonados' => count($geosegmentosNuevos),
+                'ya_existentes' => count($geosegmentosExistentes)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al clonar geosegmentos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Asigna ubigeos a un geosegmento en el periodo-ciclo actual (UPDATE).
      *
      * @param Request $request

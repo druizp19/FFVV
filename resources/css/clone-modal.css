@@ -1,0 +1,341 @@
+/* ============================================
+   MODAL REEMPLAZAR GEOSEGMENTOS
+   Usando la misma estrategia que detailsModal
+   ============================================ */
+
+/* Modal Content Override */
+#cloneGeosegmentosModal .modal-content {
+    max-width: none;
+    width: 100%;
+    height: auto;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#cloneGeosegmentosModal .modal-header {
+    padding: 18px 28px;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+/* Body Horizontal */
+#cloneModalBody {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    flex: 0 0 auto;
+    overflow: hidden;
+    padding: 20px 28px;
+    height: 420px;
+}
+
+/* Sidebar */
+#cloneModalSidebar {
+    width: 350px;
+    min-width: 350px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+}
+
+#cloneSearchSection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#cloneSearchBox {
+    position: relative;
+}
+
+#cloneSearchBox svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+#cloneZonaSearchInput {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-primary);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+#cloneZonaSearchInput:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+#cloneZonasList {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 2px solid var(--border-primary);
+    border-radius: 10px;
+    background: var(--bg-primary);
+    padding: 8px;
+    height: 100%;
+}
+
+#cloneZonasList .zone-checkbox-item {
+    border-bottom: 1px solid var(--border-primary);
+}
+
+#cloneZonasList .zone-checkbox-item:last-child {
+    border-bottom: none;
+}
+
+#cloneZonasList .zone-checkbox-item input[type="checkbox"] {
+    display: none;
+}
+
+#cloneZonasList .zone-checkbox-item label {
+    display: block;
+    padding: 14px 16px;
+    cursor: pointer;
+    position: relative;
+    padding-left: 48px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+#cloneZonasList .zone-checkbox-item label:hover {
+    background: var(--bg-hover);
+}
+
+#cloneZonasList .zone-checkbox-item input[type="checkbox"]:checked + label {
+    background: rgba(59, 130, 246, 0.12);
+    border-left: 4px solid var(--accent-primary);
+    padding-left: 44px;
+}
+
+#cloneZonasList .zone-checkbox-item label::before {
+    content: '';
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    transition: all 0.2s ease;
+}
+
+#cloneZonasList .zone-checkbox-item input[type="checkbox"]:checked + label::before {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+#cloneZonasList .zone-checkbox-item input[type="checkbox"]:checked + label::after {
+    content: '';
+    position: absolute;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 6px;
+    height: 11px;
+    border: solid white;
+    border-width: 0 2.5px 2.5px 0;
+}
+
+#cloneZonasList .zone-checkbox-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#cloneZonasList .zone-checkbox-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+#cloneZonasList .zone-checkbox-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* Preview Panel */
+#cloneModalPreview {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#clonePreviewContainer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    height: 100%;
+}
+
+#clonePreviewHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    flex-shrink: 0;
+}
+
+#clonePreviewHeader svg {
+    flex-shrink: 0;
+}
+
+#cloneGeosegmentosPreview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-muted);
+    padding: 40px 30px;
+}
+
+#cloneGeosegmentosPreview svg {
+    opacity: 0.25;
+}
+
+#cloneGeosegmentosPreview p {
+    font-size: 15px;
+    margin: 0;
+    font-weight: 500;
+}
+
+#cloneGeosegmentosPreviewContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: none;
+}
+
+#cloneGeosegmentosPreviewContent .preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--bg-primary);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-primary);
+    transition: all 0.2s ease;
+}
+
+#cloneGeosegmentosPreviewContent .preview-item:hover {
+    border-color: var(--accent-primary);
+    transform: translateX(4px);
+}
+
+#cloneGeosegmentosPreviewContent .preview-item.highlight {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+    border: 2px solid var(--accent-primary);
+}
+
+#cloneGeosegmentosPreviewContent .preview-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+#cloneGeosegmentosPreviewContent .preview-value {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+#cloneGeosegmentosPreviewContent .preview-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 2px solid rgba(239, 68, 68, 0.25);
+    border-radius: 10px;
+    font-size: 13px;
+    color: #991b1b;
+    margin-top: 20px;
+    line-height: 1.6;
+}
+
+#cloneGeosegmentosPreviewContent .preview-note svg {
+    flex-shrink: 0;
+    color: #ef4444;
+    margin-top: 3px;
+}
+
+/* Footer */
+#cloneGeosegmentosModal .modal-footer {
+    padding: 16px 28px;
+    flex-shrink: 0;
+}
+
+/* Scrollbars */
+#cloneZonasList::-webkit-scrollbar,
+#cloneGeosegmentosPreviewContent::-webkit-scrollbar {
+    width: 10px;
+}
+
+#cloneZonasList::-webkit-scrollbar-track,
+#cloneGeosegmentosPreviewContent::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 5px;
+}
+
+#cloneZonasList::-webkit-scrollbar-thumb,
+#cloneGeosegmentosPreviewContent::-webkit-scrollbar-thumb {
+    background: var(--border-primary);
+    border-radius: 5px;
+}
+
+#cloneZonasList::-webkit-scrollbar-thumb:hover,
+#cloneGeosegmentosPreviewContent::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    #cloneModalBody {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    #cloneModalSidebar {
+        width: 100%;
+        min-width: 100%;
+        max-height: 300px;
+    }
+    
+    #cloneZonasList {
+        max-height: 200px;
+    }
+}

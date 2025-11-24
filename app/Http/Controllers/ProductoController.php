@@ -60,6 +60,13 @@ class ProductoController extends Controller
             });
         }
 
+        // Filtro por línea
+        if ($request->filled('linea')) {
+            $query->whereHas('franqLinea', function ($q) use ($request) {
+                $q->where('idLinea', $request->linea);
+            });
+        }
+
         $productos = $query->orderBy('idProducto', 'desc')
             ->paginate(10)
             ->appends($request->except('page'));
@@ -72,6 +79,9 @@ class ProductoController extends Controller
             })
             ->orderBy('marca', 'asc')
             ->get();
+        
+        // Obtener líneas
+        $lineas = \App\Models\Linea::orderBy('linea', 'asc')->get();
         
         $cuotas = \App\Models\Cuota::orderBy('cuota', 'asc')->get();
         $promociones = \App\Models\Promocion::orderBy('promocion', 'asc')->get();
@@ -97,7 +107,7 @@ class ProductoController extends Controller
             }
         }
 
-        return view('productos.index', compact('productos', 'estados', 'ciclos', 'marcas', 'cuotas', 'promociones', 'alcances', 'cores', 'cicloCerrado'));
+        return view('productos.index', compact('productos', 'estados', 'ciclos', 'marcas', 'lineas', 'cuotas', 'promociones', 'alcances', 'cores', 'cicloCerrado'));
     }
 
     /**

@@ -112,12 +112,89 @@ class ZonaController extends Controller
             $query->where('zona', 'like', "%{$search}%");
         }
         
+        // Aplicar filtro de línea si existe
+        if ($request->filled('linea') && $cicloSeleccionado) {
+            $idLinea = $request->linea;
+            
+            // Obtener IDs de zonas que tienen representantes de la línea seleccionada
+            $zonasConLinea = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_PRODUCTO as p', 'fv.idProducto', '=', 'p.idProducto')
+                ->join('ODS.TAB_FRANQLINEA as fl', 'p.idFranqLinea', '=', 'fl.idFranqLinea')
+                ->join('ODS.TAB_ZONAEMP as ze', 'fv.idZonaEmp', '=', 'ze.idZonaEmp')
+                ->where('fl.idLinea', $idLinea)
+                ->where('fv.idCiclo', $cicloSeleccionado)
+                ->where('fv.idEstado', 1)
+                ->where('ze.idEstado', 1)
+                ->distinct()
+                ->pluck('ze.idZona');
+            
+            if ($zonasConLinea->isNotEmpty()) {
+                $query->whereIn('idZona', $zonasConLinea);
+            } else {
+                // Si no hay zonas con esa línea, forzar resultado vacío
+                $query->whereRaw('1 = 0');
+            }
+        }
+        
+        // Aplicar filtro de empleado (supervisor o representante) si existe
+        if ($request->filled('empleado') && $cicloSeleccionado) {
+            $empleadoSearch = $request->empleado;
+            
+            // Buscar en supervisores (TAB_ZONAEMP)
+            $zonasConSupervisor = \DB::table('ODS.TAB_ZONAEMP as ze')
+                ->join('ODS.TAB_EMPLEADO as e', 'ze.idEmpleado', '=', 'e.idEmpleado')
+                ->where('ze.idCiclo', $cicloSeleccionado)
+                ->where('ze.idEstado', 1)
+                ->where(function($q) use ($empleadoSearch) {
+                    $q->where('e.nombre', 'like', "%{$empleadoSearch}%")
+                      ->orWhere('e.apeNombre', 'like', "%{$empleadoSearch}%")
+                      ->orWhereRaw("CONCAT(e.nombre, ' ', e.apeNombre) like ?", ["%{$empleadoSearch}%"]);
+                })
+                ->distinct()
+                ->pluck('ze.idZona');
+            
+            // Buscar en representantes (TAB_FUERZAVENTA)
+            $zonasConRepresentante = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_EMPLEADO as e', 'fv.idEmpleado', '=', 'e.idEmpleado')
+                ->join('ODS.TAB_ZONAEMP as ze', 'fv.idZonaEmp', '=', 'ze.idZonaEmp')
+                ->where('fv.idCiclo', $cicloSeleccionado)
+                ->where('fv.idEstado', 1)
+                ->where('ze.idEstado', 1)
+                ->where(function($q) use ($empleadoSearch) {
+                    $q->where('e.nombre', 'like', "%{$empleadoSearch}%")
+                      ->orWhere('e.apeNombre', 'like', "%{$empleadoSearch}%")
+                      ->orWhereRaw("CONCAT(e.nombre, ' ', e.apeNombre) like ?", ["%{$empleadoSearch}%"]);
+                })
+                ->distinct()
+                ->pluck('ze.idZona');
+            
+            // Combinar ambos resultados
+            $zonasConEmpleado = $zonasConSupervisor->merge($zonasConRepresentante)->unique();
+            
+            if ($zonasConEmpleado->isNotEmpty()) {
+                $query->whereIn('idZona', $zonasConEmpleado);
+            } else {
+                // Si no hay zonas con ese empleado, forzar resultado vacío
+                $query->whereRaw('1 = 0');
+            }
+        }
+        
         // Obtener zonas con paginación y mantener parámetros
         $zonas = $query->orderBy('idZona', 'desc')
             ->paginate(10)
             ->appends($request->all());
         
-        // Agregar el conteo de ubigeos manualmente para cada zona
+        // Obtener empleados con ausencias activas para este ciclo
+        $empleadosConAusencia = collect();
+        if ($cicloSeleccionado) {
+            $empleadosConAusencia = \DB::table('ODS.TAB_AUSENCIA as a')
+                ->join('ODS.TAB_PERIODO_CICLO as pc', 'a.idPeriodoCiclo', '=', 'pc.idPeriodoCiclo')
+                ->where('pc.idCiclo', $cicloSeleccionado)
+                ->where('a.idEstado', 1)
+                ->pluck('a.idEmpleado');
+        }
+        
+        // Agregar el conteo de ubigeos y empleados manualmente para cada zona
         foreach ($zonas as $zona) {
             // Primero obtener los IDs de geosegmentos activos para esta zona y ciclo
             $geosegmentosActivos = \DB::table('ODS.TAB_ZONAGEO')
@@ -138,6 +215,28 @@ class ZonaController extends Controller
             } else {
                 $zona->ubigeos_count = 0;
             }
+            
+            // Contar supervisores (de TAB_ZONAEMP)
+            $zona->supervisores_count = $zona->zonasEmpleados->count();
+            
+            // Contar representantes (de TAB_FUERZAVENTA) excluyendo los que tienen ausencia
+            $representantesCount = 0;
+            foreach ($zona->zonasEmpleados as $zonaEmp) {
+                $repsQuery = \DB::table('ODS.TAB_FUERZAVENTA')
+                    ->where('idZonaEmp', $zonaEmp->idZonaEmp)
+                    ->where('idEstado', 1);
+                
+                if ($cicloSeleccionado) {
+                    $repsQuery->where('idCiclo', $cicloSeleccionado);
+                }
+                
+                if ($empleadosConAusencia->isNotEmpty()) {
+                    $repsQuery->whereNotIn('idEmpleado', $empleadosConAusencia);
+                }
+                
+                $representantesCount += $repsQuery->distinct('idEmpleado')->count('idEmpleado');
+            }
+            $zona->representantes_count = $representantesCount;
         }
         
         $geosegmentos = $this->geosegmentoService->getAllGeosegmentos();
@@ -359,6 +458,9 @@ class ZonaController extends Controller
             $repsQuery = \DB::table('ODS.TAB_FUERZAVENTA as fv')
                 ->join('ODS.TAB_EMPLEADO as e', 'fv.idEmpleado', '=', 'e.idEmpleado')
                 ->leftJoin('ODS.TAB_CARGO as c', 'e.idCargo', '=', 'c.idCargo')
+                ->leftJoin('ODS.TAB_PRODUCTO as p', 'fv.idProducto', '=', 'p.idProducto')
+                ->leftJoin('ODS.TAB_FRANQLINEA as fl', 'p.idFranqLinea', '=', 'fl.idFranqLinea')
+                ->leftJoin('ODS.TAB_LINEA as l', 'fl.idLinea', '=', 'l.idLinea')
                 ->where('fv.idZonaEmp', $zonaEmp->idZonaEmp)
                 ->where('fv.idEstado', 1);
             
@@ -373,9 +475,10 @@ class ZonaController extends Controller
                 'e.apeNombre',
                 'e.correo',
                 'c.cargo',
-                'fv.idZonaEmp'
+                'fv.idZonaEmp',
+                \DB::raw('MIN(l.linea) as linea')
             )
-            ->groupBy('fv.idEmpleado', 'e.nombre', 'e.apeNombre', 'e.correo', 'c.cargo', 'fv.idZonaEmp') // Agrupar por empleado
+            ->groupBy('fv.idEmpleado', 'e.nombre', 'e.apeNombre', 'e.correo', 'c.cargo', 'fv.idZonaEmp')
             ->get();
             
             foreach ($reps as $rep) {
@@ -387,7 +490,7 @@ class ZonaController extends Controller
                     'cargo' => $rep->cargo ?? 'Representante Médico',
                     'tipo' => 'representante',
                     'idZonaEmp' => $rep->idZonaEmp,
-                    'supervisor' => $zonaEmp->empleado->nombre ?? 'N/A'
+                    'linea' => $rep->linea ?? 'Sin línea'
                 ]);
             }
         }
@@ -719,7 +822,7 @@ class ZonaController extends Controller
                 'idEmpleado' => 'required|integer',
                 'idZonaEmp' => 'required|integer',
                 'idCiclo' => 'required|integer',
-                'idProducto' => 'nullable|integer'
+                'idFranqLinea' => 'required|integer'
             ]);
 
             // Verificar si la zona existe
@@ -787,22 +890,50 @@ class ZonaController extends Controller
             $fechaInicioCiclo = \Carbon\Carbon::parse($ciclo->fechaInicio);
             $periodoComision = $fechaInicioCiclo->format('Ym');
 
-            // Crear nueva relación en TAB_FUERZAVENTA
-            $idFuerza = \DB::table('ODS.TAB_FUERZAVENTA')->insertGetId([
-                'idCiclo' => $request->idCiclo,
-                'idZonaEmp' => $request->idZonaEmp,
-                'idProducto' => $request->idProducto,
-                'idEmpleado' => $request->idEmpleado,
-                'fechaModificacion' => now(),
-                'fechaCierre' => null,
-                'idEstado' => 1,
-                'periodoComision' => $periodoComision
-            ]);
+            // Obtener todos los productos de la franqlinea seleccionada para este ciclo
+            $productos = \DB::table('ODS.TAB_PRODUCTO')
+                ->where('idFranqLinea', $request->idFranqLinea)
+                ->where('idCiclo', $request->idCiclo)
+                ->where('idEstado', 1)
+                ->pluck('idProducto');
+
+            if ($productos->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron productos activos para esta franquicia/línea en el ciclo seleccionado.'
+                ], 400);
+            }
+
+            // Crear un registro en TAB_FUERZAVENTA por cada producto
+            $insertados = 0;
+            foreach ($productos as $idProducto) {
+                // Verificar si ya existe
+                $existe = \DB::table('ODS.TAB_FUERZAVENTA')
+                    ->where('idZonaEmp', $request->idZonaEmp)
+                    ->where('idEmpleado', $request->idEmpleado)
+                    ->where('idProducto', $idProducto)
+                    ->where('idCiclo', $request->idCiclo)
+                    ->exists();
+
+                if (!$existe) {
+                    \DB::table('ODS.TAB_FUERZAVENTA')->insert([
+                        'idCiclo' => $request->idCiclo,
+                        'idZonaEmp' => $request->idZonaEmp,
+                        'idProducto' => $idProducto,
+                        'idEmpleado' => $request->idEmpleado,
+                        'fechaModificacion' => now(),
+                        'fechaCierre' => null,
+                        'idEstado' => 1,
+                        'periodoComision' => $periodoComision
+                    ]);
+                    $insertados++;
+                }
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Representante médico agregado exitosamente.',
-                'idFuerza' => $idFuerza
+                'message' => "Representante médico agregado exitosamente con {$insertados} producto(s).",
+                'productosInsertados' => $insertados
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1168,15 +1299,50 @@ class ZonaController extends Controller
                 'supervisores_count' => $zona->zonasEmpleados->count()
             ]);
             
-            foreach ($zona->zonasEmpleados as $zonaEmp) {
-                \Log::error('DEBUG: Buscando representantes para supervisor', [
-                    'idZonaEmp' => $zonaEmp->idZonaEmp,
-                    'supervisor' => $zonaEmp->empleado->nombre ?? 'N/A'
-                ]);
+            // Obtener empleados con ausencias activas en este ciclo (renuncia y licencia)
+            $empleadosConRenuncia = collect();
+            $empleadosConLicencia = collect();
+            $ausenciasInfo = collect();
+            
+            if ($cicloId) {
+                // Obtener renuncias
+                $empleadosConRenuncia = \DB::table('ODS.TAB_AUSENCIA as a')
+                    ->join('ODS.TAB_PERIODO_CICLO as pc', 'a.idPeriodoCiclo', '=', 'pc.idPeriodoCiclo')
+                    ->join('ODS.TAB_TIPO_AUSENCIA as ta', 'a.idTipoAusencia', '=', 'ta.idTipoAusencia')
+                    ->where('pc.idCiclo', $cicloId)
+                    ->where('a.idEstado', 1)
+                    ->whereRaw('LOWER(ta.tipo) = ?', ['renuncia'])
+                    ->pluck('a.idEmpleado');
                 
+                // Obtener licencias con información completa
+                $licencias = \DB::table('ODS.TAB_AUSENCIA as a')
+                    ->join('ODS.TAB_PERIODO_CICLO as pc', 'a.idPeriodoCiclo', '=', 'pc.idPeriodoCiclo')
+                    ->join('ODS.TAB_TIPO_AUSENCIA as ta', 'a.idTipoAusencia', '=', 'ta.idTipoAusencia')
+                    ->where('pc.idCiclo', $cicloId)
+                    ->where('a.idEstado', 1)
+                    ->whereRaw('LOWER(ta.tipo) = ?', ['licencia'])
+                    ->select('a.idEmpleado', 'a.idAusencia', 'a.fechaInicio', 'a.fechaFin', 'a.observacion')
+                    ->get();
+                
+                foreach ($licencias as $licencia) {
+                    $empleadosConLicencia->push($licencia->idEmpleado);
+                    $ausenciasInfo->put($licencia->idEmpleado, [
+                        'idAusencia' => $licencia->idAusencia,
+                        'tipo' => 'licencia',
+                        'fechaInicio' => $licencia->fechaInicio,
+                        'fechaFin' => $licencia->fechaFin,
+                        'observacion' => $licencia->observacion
+                    ]);
+                }
+            }
+            
+            foreach ($zona->zonasEmpleados as $zonaEmp) {
                 $repsQuery = \DB::table('ODS.TAB_FUERZAVENTA as fv')
                     ->join('ODS.TAB_EMPLEADO as e', 'fv.idEmpleado', '=', 'e.idEmpleado')
                     ->leftJoin('ODS.TAB_CARGO as c', 'e.idCargo', '=', 'c.idCargo')
+                    ->leftJoin('ODS.TAB_PRODUCTO as p', 'fv.idProducto', '=', 'p.idProducto')
+                    ->leftJoin('ODS.TAB_FRANQLINEA as fl', 'p.idFranqLinea', '=', 'fl.idFranqLinea')
+                    ->leftJoin('ODS.TAB_LINEA as l', 'fl.idLinea', '=', 'l.idLinea')
                     ->where('fv.idZonaEmp', $zonaEmp->idZonaEmp)
                     ->where('fv.idEstado', 1);
                 
@@ -1184,39 +1350,37 @@ class ZonaController extends Controller
                     $repsQuery->where('fv.idCiclo', $cicloId);
                 }
                 
-                // Log de la query SQL
-                \Log::error('DEBUG: Query SQL', [
-                    'sql' => $repsQuery->toSql(),
-                    'bindings' => [
-                        'idZonaEmp' => $zonaEmp->idZonaEmp,
-                        'idEstado' => 1,
-                        'idCiclo' => $cicloId
-                    ]
-                ]);
-                
                 $reps = $repsQuery->select(
                     \DB::raw('MIN(fv.idFuerza) as idFuerza'),
                     'fv.idEmpleado',
                     'e.nombre',
                     'e.apeNombre',
-                    'c.cargo'
+                    'c.cargo',
+                    \DB::raw('MIN(l.linea) as linea')
                 )
-                ->groupBy('fv.idEmpleado', 'e.nombre', 'e.apeNombre', 'c.cargo') // Agrupar por empleado
+                ->groupBy('fv.idEmpleado', 'e.nombre', 'e.apeNombre', 'c.cargo')
                 ->get();
                 
-                \Log::error('DEBUG: Representantes encontrados', [
-                    'idZonaEmp' => $zonaEmp->idZonaEmp,
-                    'count' => $reps->count(),
-                    'representantes' => $reps->toArray()
-                ]);
-                
                 foreach ($reps as $rep) {
+                    $esRenuncia = $empleadosConRenuncia->contains($rep->idEmpleado);
+                    $esLicencia = $empleadosConLicencia->contains($rep->idEmpleado);
+                    $linea = $rep->linea ?? 'Sin línea';
+                    
+                    $ausenciaInfo = null;
+                    if ($esLicencia && $ausenciasInfo->has($rep->idEmpleado)) {
+                        $ausenciaInfo = $ausenciasInfo->get($rep->idEmpleado);
+                    }
+                    
                     $representantes->push([
                         'id' => $rep->idFuerza,
-                        'nombre' => trim(($rep->nombre ?? '') . ' ' . ($rep->apeNombre ?? '')),
+                        'idEmpleado' => $rep->idEmpleado,
+                        'nombre' => $esRenuncia ? "VACANTE {$linea}" : trim(($rep->nombre ?? '') . ' ' . ($rep->apeNombre ?? '')),
                         'tipo' => 'representante',
                         'cargo' => $rep->cargo ?? 'Representante Médico',
-                        'supervisor' => $zonaEmp->empleado->nombre ?? 'N/A'
+                        'linea' => $linea,
+                        'esVacante' => $esRenuncia,
+                        'esLicencia' => $esLicencia,
+                        'ausenciaInfo' => $ausenciaInfo
                     ]);
                 }
             }
@@ -1267,6 +1431,669 @@ class ZonaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Elimina múltiples geosegmentos de una zona de forma masiva.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function bulkRemoveGeosegmentos(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'geosegmentos' => 'required|array',
+                'geosegmentos.*' => 'integer'
+            ]);
+
+            $removidos = 0;
+            foreach ($request->geosegmentos as $idZonaGeo) {
+                $zonaGeo = \App\Models\ZonaGeo::find($idZonaGeo);
+                if ($zonaGeo && $zonaGeo->idZona == $id) {
+                    $zonaGeo->idEstado = 0;
+                    $zonaGeo->save();
+                    $removidos++;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$removidos} geosegmento(s) eliminado(s) exitosamente."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar geosegmentos: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Copia geosegmentos de otras zonas a la zona actual.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function copyGeosegmentosFromZones(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'zonasOrigen' => 'required|array',
+                'zonasOrigen.*' => 'integer',
+                'idCiclo' => 'required|integer'
+            ]);
+
+            $cicloId = $request->idCiclo;
+
+            // PASO 1: Eliminar (desactivar) todos los geosegmentos actuales de la zona destino
+            $eliminados = \DB::table('ODS.TAB_ZONAGEO')
+                ->where('idZona', $id)
+                ->where('idCiclo', $cicloId)
+                ->where('idEstado', 1)
+                ->update(['idEstado' => 0]);
+
+            // PASO 2: Obtener todos los geosegmentos únicos de las zonas origen
+            $geosegmentosUnicos = \DB::table('ODS.TAB_ZONAGEO')
+                ->whereIn('idZona', $request->zonasOrigen)
+                ->where('idCiclo', $cicloId)
+                ->where('idEstado', 1)
+                ->distinct()
+                ->pluck('idGeosegmento');
+
+            $insertados = 0;
+            $reactivados = 0;
+
+            // PASO 3: Insertar o reactivar los geosegmentos de las zonas origen
+            foreach ($geosegmentosUnicos as $idGeosegmento) {
+                // Verificar si existe un registro previo (aunque esté inactivo)
+                $existe = \DB::table('ODS.TAB_ZONAGEO')
+                    ->where('idZona', $id)
+                    ->where('idGeosegmento', $idGeosegmento)
+                    ->where('idCiclo', $cicloId)
+                    ->first();
+
+                if ($existe) {
+                    // Reactivar el registro existente
+                    \DB::table('ODS.TAB_ZONAGEO')
+                        ->where('idZonaGeo', $existe->idZonaGeo)
+                        ->update(['idEstado' => 1]);
+                    $reactivados++;
+                } else {
+                    // Insertar nuevo registro
+                    \DB::table('ODS.TAB_ZONAGEO')->insert([
+                        'idZona' => $id,
+                        'idGeosegmento' => $idGeosegmento,
+                        'idEstado' => 1,
+                        'idCiclo' => $cicloId
+                    ]);
+                    $insertados++;
+                }
+            }
+
+            $totalCopiados = $insertados + $reactivados;
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se reemplazaron {$eliminados} geosegmento(s) por {$totalCopiados} nuevo(s)",
+                'eliminados' => $eliminados,
+                'insertados' => $insertados,
+                'reactivados' => $reactivados,
+                'total' => $totalCopiados
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al copiar geosegmentos: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Reactiva un empleado desactivando su ausencia de tipo licencia.
+     *
+     * @param Request $request
+     * @param int $idEmpleado
+     * @return JsonResponse
+     */
+    public function reactivarEmpleadoLicencia(Request $request, int $idEmpleado): JsonResponse
+    {
+        try {
+            $request->validate([
+                'idCiclo' => 'required|integer'
+            ]);
+
+            // Verificar si el ciclo está cerrado
+            $ciclo = \App\Models\Ciclo::find($request->idCiclo);
+            if ($ciclo) {
+                $esCerrado = false;
+                
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            // Obtener el periodo del ciclo
+            $periodoCiclo = \DB::table('ODS.TAB_PERIODO_CICLO')
+                ->where('idCiclo', $request->idCiclo)
+                ->where('idEstado', 1)
+                ->orderBy('idPeriodoCiclo', 'desc')
+                ->first();
+
+            if (!$periodoCiclo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró un periodo activo para este ciclo.'
+                ], 404);
+            }
+
+            // Buscar la ausencia de tipo licencia activa para este empleado
+            $ausencia = \DB::table('ODS.TAB_AUSENCIA as a')
+                ->join('ODS.TAB_TIPO_AUSENCIA as ta', 'a.idTipoAusencia', '=', 'ta.idTipoAusencia')
+                ->where('a.idEmpleado', $idEmpleado)
+                ->where('a.idPeriodoCiclo', $periodoCiclo->idPeriodoCiclo)
+                ->where('a.idEstado', 1)
+                ->whereRaw('LOWER(ta.tipo) = ?', ['licencia'])
+                ->select('a.idAusencia')
+                ->first();
+
+            if (!$ausencia) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró una licencia activa para este empleado.'
+                ], 404);
+            }
+
+            // Desactivar la ausencia (cambiar estado a 0)
+            \DB::table('ODS.TAB_AUSENCIA')
+                ->where('idAusencia', $ausencia->idAusencia)
+                ->update(['idEstado' => 0]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Empleado reactivado exitosamente. La licencia ha sido finalizada.'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de entrada inválidos.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al reactivar el empleado: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Quita un representante médico de una zona y registra su ausencia.
+     *
+     * @param Request $request
+     * @param int $idFuerza
+     * @return JsonResponse
+     */
+    public function removeRepresentanteWithAusencia(Request $request, int $idFuerza): JsonResponse
+    {
+        try {
+            $request->validate([
+                'idEmpleado' => 'required|integer',
+                'idTipoAusencia' => 'required|integer',
+                'idCiclo' => 'required|integer',
+                'fechaInicio' => 'required|date',
+                'fechaFin' => 'nullable|date',
+                'observacion' => 'nullable|string'
+            ]);
+
+            // Verificar si el ciclo está cerrado
+            $ciclo = \App\Models\Ciclo::find($request->idCiclo);
+            if ($ciclo) {
+                $esCerrado = false;
+                
+                if ($ciclo->fechaFin) {
+                    $fechaFin = \Carbon\Carbon::parse($ciclo->fechaFin)->startOfDay();
+                    $hoy = \Carbon\Carbon::now()->startOfDay();
+                    $esCerrado = $fechaFin->lt($hoy);
+                }
+                
+                if (!$esCerrado) {
+                    $estadoRelacion = $ciclo->relationLoaded('estado') ? $ciclo->getRelation('estado') : $ciclo->estado()->first();
+                    if ($estadoRelacion && $estadoRelacion->estado === 'Cerrado') {
+                        $esCerrado = true;
+                    }
+                }
+                
+                if ($esCerrado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pueden realizar modificaciones en un ciclo cerrado.'
+                    ], 403);
+                }
+            }
+
+            // Obtener el periodo del ciclo
+            $periodoCiclo = \DB::table('ODS.TAB_PERIODO_CICLO')
+                ->where('idCiclo', $request->idCiclo)
+                ->where('idEstado', 1)
+                ->orderBy('idPeriodoCiclo', 'desc')
+                ->first();
+
+            if (!$periodoCiclo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró un periodo activo para este ciclo.'
+                ], 404);
+            }
+
+            // Iniciar transacción
+            \DB::beginTransaction();
+
+            // 1. Registrar la ausencia
+            $idAusencia = \DB::table('ODS.TAB_AUSENCIA')->insertGetId([
+                'idTipoAusencia' => $request->idTipoAusencia,
+                'idEmpleado' => $request->idEmpleado,
+                'idPeriodoCiclo' => $periodoCiclo->idPeriodoCiclo,
+                'idEstado' => 1,
+                'fechaInicio' => $request->fechaInicio,
+                'fechaFin' => $request->fechaFin,
+                'observacion' => $request->observacion,
+                'fechaRegistro' => now()
+            ]);
+
+            // 2. NO desactivar en TAB_FUERZAVENTA - mantener activo para futuro reemplazo
+            // Los registros permanecen activos para que puedan ser actualizados con el nuevo representante
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Ausencia registrada exitosamente. El representante puede ser reemplazado.",
+                'idAusencia' => $idAusencia
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de entrada inválidos.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al remover el representante: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Cambia un supervisor de una zona.
+     *
+     * @param Request $request
+     * @param int $idZonaEmp
+     * @return JsonResponse
+     */
+    public function cambiarSupervisor(Request $request, int $idZonaEmp): JsonResponse
+    {
+        try {
+            $request->validate([
+                'idEmpleadoAntiguo' => 'required|integer',
+                'idEmpleadoNuevo' => 'required|integer',
+                'idCiclo' => 'required|integer'
+            ]);
+
+            \DB::beginTransaction();
+
+            // 1. Obtener el registro antiguo de ZonaEmp
+            $zonaEmpAntiguo = \DB::table('ODS.TAB_ZONAEMP')->where('idZonaEmp', $idZonaEmp)->first();
+            
+            if (!$zonaEmpAntiguo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Registro no encontrado.'
+                ], 404);
+            }
+
+            // 2. Desactivar el registro antiguo
+            \DB::table('ODS.TAB_ZONAEMP')
+                ->where('idZonaEmp', $idZonaEmp)
+                ->update(['idEstado' => 0]);
+
+            // 3. Crear nuevo registro con el nuevo supervisor
+            $nuevoIdZonaEmp = \DB::table('ODS.TAB_ZONAEMP')->insertGetId([
+                'idZona' => $zonaEmpAntiguo->idZona,
+                'idEmpleado' => $request->idEmpleadoNuevo,
+                'idCiclo' => $request->idCiclo,
+                'idEstado' => 1
+            ]);
+
+            // 4. Actualizar todos los registros de TAB_FUERZAVENTA que apuntaban al antiguo idZonaEmp
+            $updated = \DB::table('ODS.TAB_FUERZAVENTA')
+                ->where('idZonaEmp', $idZonaEmp)
+                ->where('idCiclo', $request->idCiclo)
+                ->update(['idZonaEmp' => $nuevoIdZonaEmp]);
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Supervisor cambiado exitosamente. Se actualizaron {$updated} registro(s) de fuerza de venta.",
+                'nuevoIdZonaEmp' => $nuevoIdZonaEmp
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar el supervisor: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Cambia un representante médico.
+     *
+     * @param Request $request
+     * @param int $idFuerza
+     * @return JsonResponse
+     */
+    public function cambiarRepresentante(Request $request, int $idFuerza): JsonResponse
+    {
+        try {
+            $request->validate([
+                'idEmpleadoAntiguo' => 'required|integer',
+                'idEmpleadoNuevo' => 'required|integer',
+                'idCiclo' => 'required|integer'
+            ]);
+
+            \DB::beginTransaction();
+
+            // ID del empleado VACANTE
+            $idEmpleadoVacante = 338;
+
+            // Obtener la zona donde se está haciendo el cambio (zona destino)
+            $zonaDestino = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_ZONAEMP as ze', 'fv.idZonaEmp', '=', 'ze.idZonaEmp')
+                ->where('fv.idFuerza', $idFuerza)
+                ->select('ze.idZona')
+                ->first();
+
+            if (!$zonaDestino) {
+                \DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo determinar la zona destino.'
+                ], 404);
+            }
+
+            // PASO 1: Cambiar los productos del empleado antiguo al nuevo en la zona destino
+            $updated = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_ZONAEMP as ze', 'fv.idZonaEmp', '=', 'ze.idZonaEmp')
+                ->where('fv.idEmpleado', $request->idEmpleadoAntiguo)
+                ->where('ze.idZona', $zonaDestino->idZona)
+                ->where('fv.idCiclo', $request->idCiclo)
+                ->where('fv.idEstado', 1)
+                ->update([
+                    'idEmpleado' => $request->idEmpleadoNuevo
+                ]);
+
+            // PASO 2: Cambiar los productos del nuevo empleado en su zona anterior a VACANTE
+            $zonasAnteriores = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_ZONAEMP as ze', 'fv.idZonaEmp', '=', 'ze.idZonaEmp')
+                ->where('fv.idEmpleado', $request->idEmpleadoNuevo)
+                ->where('ze.idZona', '!=', $zonaDestino->idZona)
+                ->where('fv.idCiclo', $request->idCiclo)
+                ->where('fv.idEstado', 1)
+                ->update([
+                    'idEmpleado' => $idEmpleadoVacante
+                ]);
+
+            \DB::commit();
+
+            $mensaje = "Representante cambiado exitosamente. Se actualizaron {$updated} registro(s) en la zona destino.";
+            if ($zonasAnteriores > 0) {
+                $mensaje .= " {$zonasAnteriores} registro(s) en la zona anterior pasaron a VACANTE.";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $mensaje
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar el representante: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Obtiene las líneas de representantes en una zona específica.
+     *
+     * @param int $id
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getLineasZona(int $id, Request $request): JsonResponse
+    {
+        try {
+            $cicloId = $request->query('ciclo');
+            
+            if (!$cicloId) {
+                // Obtener el ciclo actual
+                $cicloActual = \DB::table('ODS.TAB_CICLO')
+                    ->where('idEstado', 1)
+                    ->orderBy('idCiclo', 'desc')
+                    ->first();
+                $cicloId = $cicloActual ? $cicloActual->idCiclo : null;
+            }
+            
+            if (!$cicloId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró un ciclo activo',
+                    'data' => []
+                ]);
+            }
+            
+            // Obtener las líneas de la zona con sus empleados y productos
+            $lineas = \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_PRODUCTO as p', 'fv.idProducto', '=', 'p.idProducto')
+                ->join('ODS.TAB_FRANQLINEA as fl', 'p.idFranqLinea', '=', 'fl.idFranqLinea')
+                ->join('ODS.TAB_LINEA as l', 'fl.idLinea', '=', 'l.idLinea')
+                ->join('ODS.TAB_EMPLEADO as e', 'fv.idEmpleado', '=', 'e.idEmpleado')
+                ->join('ODS.TAB_ZONAEMP as ze', 'fv.idZonaEmp', '=', 'ze.idZonaEmp')
+                ->where('ze.idZona', $id)
+                ->where('fv.idCiclo', $cicloId)
+                ->where('fv.idEstado', 1)
+                ->select(
+                    'fl.idFranqLinea',
+                    'l.linea',
+                    'fv.idEmpleado',
+                    \DB::raw("CONCAT(e.nombre, ' ', ISNULL(e.apeNombre, '')) as empleado"),
+                    \DB::raw("COUNT(DISTINCT p.idProducto) as productos")
+                )
+                ->groupBy('fl.idFranqLinea', 'l.linea', 'fv.idEmpleado', 'e.nombre', 'e.apeNombre')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $lineas
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener las líneas: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Unifica dos líneas en una sola.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function unificarLinea(Request $request): JsonResponse
+    {
+        try {
+            \DB::beginTransaction();
+            
+            $idZona = $request->input('idZona');
+            $idLinea = $request->input('idLinea');
+            $idEmpleado = $request->input('idEmpleado');
+            $lineasAUnificar = $request->input('lineasAUnificar', []);
+            
+            // Validaciones
+            if (!$idZona || !$idLinea || !$idEmpleado || count($lineasAUnificar) < 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos incompletos para unificar líneas'
+                ], 400);
+            }
+            
+            // Obtener ciclo actual
+            $cicloActual = \DB::table('ODS.TAB_CICLO')
+                ->where('idEstado', 1)
+                ->orderBy('idCiclo', 'desc')
+                ->first();
+            
+            if (!$cicloActual) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró un ciclo activo'
+                ], 400);
+            }
+            
+            // Obtener idZonaEmp
+            $zonaEmp = \DB::table('ODS.TAB_ZONAEMP')
+                ->where('idZona', $idZona)
+                ->where('idCiclo', $cicloActual->idCiclo)
+                ->first();
+            
+            if (!$zonaEmp) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró la relación zona-empleado'
+                ], 400);
+            }
+            
+            // Buscar o crear FranqLinea con la nueva línea
+            // Asumimos estructura y mixta por defecto (puedes ajustar según tu lógica)
+            $franqLinea = \DB::table('ODS.TAB_FRANQLINEA')
+                ->where('idLinea', $idLinea)
+                ->where('idEstado', 1)
+                ->first();
+            
+            if (!$franqLinea) {
+                // Crear nueva FranqLinea si no existe
+                $idFranqLinea = \DB::table('ODS.TAB_FRANQLINEA')->insertGetId([
+                    'idLinea' => $idLinea,
+                    'idMixta' => 1, // Ajustar según tu lógica
+                    'idEstructura' => 1, // Ajustar según tu lógica
+                    'idEstado' => 1
+                ]);
+            } else {
+                $idFranqLinea = $franqLinea->idFranqLinea;
+            }
+            
+            // Obtener todos los productos de las líneas a unificar con todos sus campos
+            $productosOriginales = \DB::table('ODS.TAB_PRODUCTO')
+                ->whereIn('idFranqLinea', $lineasAUnificar)
+                ->where('idCiclo', $cicloActual->idCiclo)
+                ->where('idEstado', 1)
+                ->get();
+            
+            // Crear nuevos productos con el nuevo idFranqLinea
+            $nuevosProductos = [];
+            foreach ($productosOriginales as $productoOriginal) {
+                // Verificar si ya existe el producto con la misma marca en la nueva línea
+                $productoExistente = \DB::table('ODS.TAB_PRODUCTO')
+                    ->where('idFranqLinea', $idFranqLinea)
+                    ->where('idMarcaMkt', $productoOriginal->idMarcaMkt)
+                    ->where('idCiclo', $cicloActual->idCiclo)
+                    ->first();
+                
+                if (!$productoExistente) {
+                    // Copiar todos los campos del producto original excepto idProducto
+                    $datosProducto = [
+                        'idCiclo' => $cicloActual->idCiclo,
+                        'idFranqLinea' => $idFranqLinea,
+                        'idMarcaMkt' => $productoOriginal->idMarcaMkt,
+                        'idCore' => $productoOriginal->idCore,
+                        'idCuota' => $productoOriginal->idCuota ?? null,
+                        'idPromocion' => $productoOriginal->idPromocion ?? null,
+                        'idAlcance' => $productoOriginal->idAlcance ?? null,
+                        'idEstado' => 1,
+                        'fechaModificacion' => now(),
+                        'fechaCierre' => $productoOriginal->fechaCierre ?? null
+                    ];
+                    
+                    $idProducto = \DB::table('ODS.TAB_PRODUCTO')->insertGetId($datosProducto);
+                    $nuevosProductos[] = $idProducto;
+                } else {
+                    $nuevosProductos[] = $productoExistente->idProducto;
+                }
+            }
+            
+            // Desactivar registros antiguos en fuerzaventa
+            \DB::table('ODS.TAB_FUERZAVENTA as fv')
+                ->join('ODS.TAB_PRODUCTO as p', 'fv.idProducto', '=', 'p.idProducto')
+                ->whereIn('p.idFranqLinea', $lineasAUnificar)
+                ->where('fv.idZonaEmp', $zonaEmp->idZonaEmp)
+                ->where('fv.idCiclo', $cicloActual->idCiclo)
+                ->update(['fv.idEstado' => 0]);
+            
+            // Insertar nuevos registros en fuerzaventa
+            foreach ($nuevosProductos as $idProducto) {
+                \DB::table('ODS.TAB_FUERZAVENTA')->insert([
+                    'idCiclo' => $cicloActual->idCiclo,
+                    'idZonaEmp' => $zonaEmp->idZonaEmp,
+                    'idProducto' => $idProducto,
+                    'idEmpleado' => $idEmpleado,
+                    'idEstado' => 1
+                ]);
+            }
+            
+            \DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Líneas unificadas correctamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al unificar líneas: ' . $e->getMessage()
             ], 500);
         }
     }

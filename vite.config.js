@@ -12,6 +12,7 @@ export default defineConfig({
                 'resources/css/modals.css',
                 'resources/css/empleados.css',
                 'resources/css/zonas.css',
+                'resources/css/clone-modal.css',
                 'resources/css/ciclos.css',
                 'resources/css/productos.css',
                 'resources/css/historial.css',

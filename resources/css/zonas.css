@@ -72,6 +72,13 @@
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.filter-select:disabled,
+.filter-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+}
+
 .filter-select {
     cursor: pointer;
     appearance: none;
@@ -753,6 +760,14 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--text-primary);
+}
+
+.zone-employee-badges {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+    flex-wrap: wrap;
 }
 
 .zone-employee-badge {
@@ -2607,5 +2622,1899 @@
 
     #assignUbigeosModal .summary-count {
         font-size: 24px;
+    }
+}
+
+/* ============================================
+   Bulk Actions Bar
+   ============================================ */
+
+.bulk-actions-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.bulk-actions-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+}
+
+.bulk-actions-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.bulk-actions-info svg {
+    flex-shrink: 0;
+}
+
+.bulk-actions-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-danger-outline,
+.btn-secondary-outline {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid white;
+    background: transparent;
+    color: white;
+}
+
+.btn-danger-outline:hover {
+    background: rgba(239, 68, 68, 0.9);
+    border-color: rgba(239, 68, 68, 0.9);
+    transform: translateY(-1px);
+}
+
+.btn-secondary-outline:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* ============================================
+   Checkbox Styles
+   ============================================ */
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.checkbox-wrapper input[type="checkbox"]:hover {
+    border-color: var(--accent-primary);
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-wrapper input[type="checkbox"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.checkbox-wrapper label {
+    display: none;
+}
+
+/* ============================================
+   Clone Modal Styles
+   ============================================ */
+
+.modal-header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.modal-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.clone-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.modal-subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 400;
+    margin-top: 4px;
+}
+
+.clone-step {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.step-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.step-content {
+    padding-left: 44px;
+}
+
+.clone-arrow {
+    display: flex;
+    justify-content: center;
+    margin: 16px 0;
+    color: var(--accent-primary);
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(10px);
+    }
+}
+
+/* Zones Multiselect */
+.zones-multiselect {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-primary);
+}
+
+.zone-checkbox-item {
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.zone-checkbox-item:last-child {
+    border-bottom: none;
+}
+
+.zone-checkbox-item input[type="checkbox"] {
+    display: none;
+}
+
+.zone-checkbox-item label {
+    display: block;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    padding-left: 48px;
+}
+
+.zone-checkbox-item label:hover {
+    background: var(--bg-hover);
+}
+
+.zone-checkbox-item input[type="checkbox"]:checked + label {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.zone-checkbox-item label::before {
+    content: '';
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    transition: all 0.2s;
+}
+
+.zone-checkbox-item input[type="checkbox"]:checked + label::before {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.zone-checkbox-item input[type="checkbox"]:checked + label::after {
+    content: '';
+    position: absolute;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+}
+
+.zone-checkbox-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.zone-checkbox-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.zone-checkbox-count {
+    font-size: 13px;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+/* Clone Preview */
+.clone-preview {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border: 2px dashed var(--accent-primary);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 24px;
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent-primary);
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+}
+
+.preview-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.preview-item:last-child {
+    border-bottom: none;
+}
+
+.preview-item.highlight {
+    background: rgba(59, 130, 246, 0.1);
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: none;
+}
+
+.preview-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.preview-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.preview-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.preview-note svg {
+    flex-shrink: 0;
+    color: var(--accent-primary);
+}
+
+/* Loading Spinner Small */
+.loading-spinner-small {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.spinner-small {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border-primary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Header Actions */
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* Form Select */
+.form-select {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 40px;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Empty/Error Messages */
+.empty-message,
+.error-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.error-message {
+    color: #ef4444;
+}
+
+
+/* ============================================
+   Zone Header Actions
+   ============================================ */
+
+.zone-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.zone-clone-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 2px solid var(--border-primary);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zone-clone-btn:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #667eea;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.zone-clone-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+
+/* ============================================
+   Zone Bulk Actions for Geosegmentos
+   ============================================ */
+
+.zone-bulk-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.zone-bulk-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.zone-bulk-info svg {
+    flex-shrink: 0;
+}
+
+.zone-bulk-remove-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zone-bulk-remove-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.zone-bulk-remove-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Checkbox for geosegmentos */
+.zone-geo-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+}
+
+.zone-geo-checkbox input[type="checkbox"] {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-primary);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.zone-geo-checkbox input[type="checkbox"]:hover {
+    border-color: var(--accent-primary);
+}
+
+.zone-geo-checkbox input[type="checkbox"]:checked {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.zone-geo-checkbox input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 4px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.zone-geo-checkbox label {
+    display: none;
+}
+
+/* Adjust zone-geo-item to accommodate checkbox */
+.zone-geo-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+
+
+
+/* ============================================
+   Modal Ausencia - Tamaño Mejorado
+   ============================================ */
+
+.modal-dialog.modal-md {
+    max-width: 600px;
+    width: 90%;
+}
+
+#ausenciaModal .modal-content {
+    min-height: auto;
+}
+
+#ausenciaModal .form-group {
+    margin-bottom: 20px;
+}
+
+#ausenciaModal .form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+#ausenciaModal .form-input,
+#ausenciaModal .form-select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+#ausenciaModal .form-input:focus,
+#ausenciaModal .form-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+#ausenciaModal .form-input[readonly] {
+    background: var(--bg-secondary);
+    cursor: not-allowed;
+}
+
+#ausenciaModal textarea.form-input {
+    resize: vertical;
+    min-height: 100px;
+    font-family: inherit;
+}
+
+#ausenciaModal .required {
+    color: var(--danger);
+    margin-left: 4px;
+}
+
+#ausenciaModal .modal-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding: 20px 24px;
+    border-top: 1px solid var(--border-primary);
+}
+
+
+#ausenciaModal .modal-body .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 0;
+    padding: 0 32px 24px 32px;
+    width: auto;
+    align-items: start;
+}
+
+#ausenciaModal .form-row .form-group {
+    margin-bottom: 0;
+    padding: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#ausenciaModal .form-row .form-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    height: 22px;
+}
+
+#ausenciaModal .form-row .form-input {
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    #ausenciaModal .form-row {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+#ausenciaModal .form-input[type="date"] {
+    cursor: pointer;
+}
+
+#ausenciaModal .form-input[type="date"]:disabled {
+    background: var(--bg-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+
+/* Count Badge Group */
+.count-badge-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.count-badge-supervisor {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.2);
+}
+
+.count-badge-supervisor svg {
+    color: #8b5cf6;
+}
+
+.count-badge-representante {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.count-badge-representante svg {
+    color: #3b82f6;
+}
+
+
+/* Vacante Styles */
+.zone-employee-item.vacante {
+    background: rgba(239, 68, 68, 0.05);
+    border-left: 3px solid #ef4444;
+}
+
+.zone-employee-item.vacante .zone-employee-icon {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.zone-employee-item.vacante .zone-employee-icon svg {
+    color: #ef4444;
+}
+
+.zone-employee-item.vacante .zone-employee-name {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+/* Licencia Styles */
+.zone-employee-item.licencia {
+    background: rgba(245, 158, 11, 0.05);
+    border-left: 3px solid #f59e0b;
+}
+
+.zone-employee-item.licencia .zone-employee-icon {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.zone-employee-item.licencia .zone-employee-icon svg {
+    color: #f59e0b;
+}
+
+.zone-employee-item.licencia .zone-employee-name {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.badge-licencia {
+    background: rgba(245, 158, 11, 0.1) !important;
+    color: #f59e0b !important;
+    font-weight: 600;
+}
+
+/* Employee Actions */
+.zone-employee-actions {
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.zone-employee-item:hover .zone-employee-actions {
+    opacity: 1;
+}
+
+.zone-action-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zone-action-change {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.zone-action-change:hover {
+    background: #3b82f6;
+    color: white;
+}
+
+.zone-action-remove {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.zone-action-remove:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.zone-action-activate {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    padding: 6px 12px;
+    width: auto;
+    font-size: 12px;
+    font-weight: 600;
+    gap: 6px;
+}
+
+.zone-action-activate:hover {
+    background: #10b981;
+    color: white;
+}
+
+/* Empleados List Container */
+.empleados-list-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.empleados-list {
+    padding: 4px;
+}
+
+.empleado-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.empleado-item:hover {
+    background: var(--bg-hover);
+}
+
+.empleado-item-empty {
+    padding: 10px 12px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.empleado-seleccionado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.empleado-seleccionado span {
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+.btn-limpiar {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.btn-limpiar:hover {
+    background: #ef4444;
+    color: white;
+}
+
+
+/* Custom Confirm Modal */
+.modal-sm {
+    max-width: 480px;
+}
+
+.confirm-warning {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.confirm-warning svg {
+    color: #f59e0b;
+}
+
+.confirm-message {
+    font-size: 15px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    line-height: 1.6;
+    font-weight: 500;
+}
+
+.confirm-question {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+
+
+/* ============================================
+   Modal Unificar Línea - Diseño Horizontal
+   ============================================ */
+
+/* Botón Unificar en Header */
+.zone-unify-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 2px solid var(--border-primary);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zone-unify-btn:hover {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-color: #f59e0b;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.zone-unify-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Modal Icon Unify */
+.unify-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+/* Modal Content Override */
+#unificarLineaModal .modal-content {
+    max-width: none;
+    width: 100%;
+    padding: 0;
+    height: auto;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+}
+
+#unificarLineaModal .modal-header {
+    padding: 24px 32px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+/* Body con Grid Horizontal */
+.unify-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* Column Containers */
+.unify-detail-column {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.unify-column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.unify-column-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.unify-column-title svg {
+    width: 18px;
+    height: 18px;
+    color: #f59e0b;
+}
+
+.unify-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    background: #f59e0b;
+    color: white;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.unify-column-content {
+    padding: 16px;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+/* Unify Líneas List */
+.unify-linea-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-primary);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+}
+
+.unify-linea-item:last-child {
+    margin-bottom: 0;
+}
+
+.unify-linea-item:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+}
+
+.unify-linea-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.unify-linea-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #f59e0b;
+}
+
+.unify-linea-content {
+    flex: 1;
+}
+
+.unify-linea-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.unify-linea-empleado {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.unify-linea-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f59e0b;
+}
+
+.unify-linea-badge svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Unify Section Compact */
+.unify-section-compact {
+    margin-bottom: 20px;
+}
+
+.unify-section-compact:last-child {
+    margin-bottom: 0;
+}
+
+/* Unify Empleado List */
+.unify-empleado-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+    margin-top: 12px;
+}
+
+.unify-empleado-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.unify-empleado-list::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+.unify-empleado-list::-webkit-scrollbar-thumb {
+    background: var(--border-hover);
+    border-radius: 3px;
+}
+
+.unify-empleado-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.unify-empleado-item:last-child {
+    border-bottom: none;
+}
+
+.unify-empleado-item:hover {
+    background: var(--bg-hover);
+}
+
+.unify-empleado-item.selected {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.unify-empleado-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.unify-empleado-icon svg {
+    width: 18px;
+    height: 18px;
+    color: var(--accent-primary);
+}
+
+.unify-empleado-info {
+    flex: 1;
+}
+
+.unify-empleado-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.unify-empleado-cargo {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Empleado Seleccionado */
+.unify-empleado-selected {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 2px solid rgba(16, 185, 129, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.unify-empleado-selected .unify-empleado-icon {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.unify-empleado-selected .unify-empleado-icon svg {
+    color: #10b981;
+}
+
+.unify-empleado-selected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(16, 185, 129, 0.2);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #10b981;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.unify-empleado-selected-badge svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .unify-lineas-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ============================================
+   Modal Unificar Línea - Horizontal Design
+   ============================================ */
+
+/* Modal Header Content - Específico para unificar */
+#unificarLineaModal .modal-header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#unificarLineaModal .modal-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .modal-icon.unify-icon {
+    background: linear-gradient(135deg, rgba(240, 53, 53, 0.1) 0%, rgba(126, 79, 235, 0.1) 50%, rgba(1, 98, 255, 0.1) 100%);
+}
+
+#unificarLineaModal .modal-icon svg {
+    color: var(--accent-primary);
+}
+
+#unificarLineaModal .modal-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 4px 0 0 0;
+}
+
+/* Unify Modal Body */
+#unificarLineaModal .unify-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+}
+
+#unificarLineaModal .unify-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* Unify Columns */
+#unificarLineaModal .unify-column {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#unificarLineaModal .unify-column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+#unificarLineaModal .unify-column-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#unificarLineaModal .unify-column-title svg {
+    width: 18px;
+    height: 18px;
+    color: var(--accent-primary);
+}
+
+#unificarLineaModal .unify-column-content {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+/* Unify Sections */
+#unificarLineaModal .unify-section {
+    margin-bottom: 24px;
+}
+
+#unificarLineaModal .unify-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Líneas List */
+#unificarLineaModal .unify-lineas-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#unificarLineaModal .unify-linea-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+#unificarLineaModal .unify-linea-item:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+}
+
+#unificarLineaModal .unify-linea-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-linea-icon svg {
+    width: 16px;
+    height: 16px;
+    color: var(--accent-primary);
+}
+
+#unificarLineaModal .unify-linea-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#unificarLineaModal .unify-linea-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#unificarLineaModal .unify-linea-details {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Empleado List */
+#unificarLineaModal .unify-empleado-list {
+    margin-top: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+}
+
+#unificarLineaModal .unify-empleado-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+#unificarLineaModal .unify-empleado-item:last-child {
+    border-bottom: none;
+}
+
+#unificarLineaModal .unify-empleado-item:hover {
+    background: var(--bg-hover);
+}
+
+#unificarLineaModal .unify-empleado-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-empleado-icon svg {
+    width: 16px;
+    height: 16px;
+    color: rgb(16, 185, 129);
+}
+
+#unificarLineaModal .unify-empleado-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#unificarLineaModal .unify-empleado-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#unificarLineaModal .unify-empleado-cargo {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Empleado Selected */
+#unificarLineaModal .unify-empleado-selected {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 2px solid rgb(16, 185, 129);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#unificarLineaModal .unify-empleado-selected-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(16, 185, 129);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-empleado-selected-icon svg {
+    width: 16px;
+    height: 16px;
+    color: white;
+}
+
+#unificarLineaModal .unify-empleado-selected-info {
+    flex: 1;
+}
+
+#unificarLineaModal .unify-empleado-selected-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#unificarLineaModal .unify-empleado-selected-cargo {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+#unificarLineaModal .unify-empleado-remove {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.1);
+    border: none;
+    border-radius: 6px;
+    color: #ef4444;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#unificarLineaModal .unify-empleado-remove:hover {
+    background: #ef4444;
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    #unificarLineaModal .unify-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    #unificarLineaModal .unify-modal-body {
+        padding: 20px 16px;
+    }
+
+    #unificarLineaModal .unify-column-content {
+        max-height: 350px;
+    }
+
+    #unificarLineaModal .modal-header-content {
+        gap: 12px;
+    }
+
+    #unificarLineaModal .modal-icon {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+
+/* ============================================
+   Modal Unificar Línea - Diseño Horizontal
+   ============================================ */
+
+/* Contenedor principal de la modal */
+#unificarLineaModal .modal-content {
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#unificarLineaModal .modal-header {
+    flex-shrink: 0;
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+#unificarLineaModal .modal-header .modal-header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#unificarLineaModal .modal-header .modal-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(240, 53, 53, 0.1) 0%, rgba(126, 79, 235, 0.1) 50%, rgba(1, 98, 255, 0.1) 100%);
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .modal-header .modal-icon svg {
+    color: var(--accent-primary);
+}
+
+#unificarLineaModal .modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+#unificarLineaModal .modal-header .modal-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 4px 0 0 0;
+}
+
+/* Body con grid horizontal */
+#unificarLineaModal .unify-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    min-height: 0;
+}
+
+#unificarLineaModal .unify-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    height: 100%;
+}
+
+/* Columnas */
+#unificarLineaModal .unify-column {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#unificarLineaModal .unify-column-header {
+    padding: 16px 20px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-column-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#unificarLineaModal .unify-column-title svg {
+    width: 18px;
+    height: 18px;
+    color: var(--accent-primary);
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-column-content {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Secciones dentro de columnas */
+#unificarLineaModal .unify-section {
+    margin-bottom: 20px;
+}
+
+#unificarLineaModal .unify-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Lista de líneas */
+#unificarLineaModal .unify-lineas-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#unificarLineaModal .unify-linea-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+#unificarLineaModal .unify-linea-item:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+}
+
+#unificarLineaModal .unify-linea-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-linea-icon svg {
+    width: 16px;
+    height: 16px;
+    color: var(--accent-primary);
+}
+
+#unificarLineaModal .unify-linea-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#unificarLineaModal .unify-linea-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+#unificarLineaModal .unify-linea-details {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Lista de empleados */
+#unificarLineaModal .unify-empleado-list {
+    margin-top: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+}
+
+#unificarLineaModal .unify-empleado-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+#unificarLineaModal .unify-empleado-item:last-child {
+    border-bottom: none;
+}
+
+#unificarLineaModal .unify-empleado-item:hover {
+    background: var(--bg-hover);
+}
+
+#unificarLineaModal .unify-empleado-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-empleado-icon svg {
+    width: 16px;
+    height: 16px;
+    color: rgb(16, 185, 129);
+}
+
+#unificarLineaModal .unify-empleado-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#unificarLineaModal .unify-empleado-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#unificarLineaModal .unify-empleado-cargo {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Empleado seleccionado */
+#unificarLineaModal .unify-empleado-selected {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 2px solid rgb(16, 185, 129);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#unificarLineaModal .unify-empleado-selected-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(16, 185, 129);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-empleado-selected-icon svg {
+    width: 16px;
+    height: 16px;
+    color: white;
+}
+
+#unificarLineaModal .unify-empleado-selected-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#unificarLineaModal .unify-empleado-selected-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#unificarLineaModal .unify-empleado-selected-cargo {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+#unificarLineaModal .unify-empleado-remove {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.1);
+    border: none;
+    border-radius: 6px;
+    color: #ef4444;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+#unificarLineaModal .unify-empleado-remove:hover {
+    background: #ef4444;
+    color: white;
+}
+
+/* Footer */
+#unificarLineaModal .modal-footer {
+    flex-shrink: 0;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    #unificarLineaModal .unify-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    #unificarLineaModal .unify-modal-body {
+        padding: 20px 16px;
+    }
+
+    #unificarLineaModal .unify-column-content {
+        max-height: 350px;
+    }
+
+    #unificarLineaModal .modal-header {
+        padding: 20px 24px;
+    }
+
+    #unificarLineaModal .modal-header .modal-icon {
+        width: 40px;
+        height: 40px;
     }
 }
